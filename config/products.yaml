@@ -1,0 +1,259 @@
+# 化工产品配置 - 全量 13 大类
+# 更新时间：2026-02-26
+
+products:
+  # ========== 1. 化纤 ==========
+  - name: 涤纶POY
+    category: 化纤
+    tickers: ["601233", "000703", "002493", "600346", "603225", "000301"]
+    keywords: ["涤纶POY", "POY"]
+
+  - name: 涤纶FDY
+    category: 化纤
+    tickers: ["601233", "000703", "002493", "600346", "603225", "000301"]
+    keywords: ["涤纶FDY", "FDY"]
+
+  - name: 涤纶DTY
+    category: 化纤
+    tickers: ["601233", "000703", "002493", "600346", "603225", "000301"]
+    keywords: ["涤纶DTY", "DTY"]
+
+  - name: 锦纶
+    category: 化纤
+    tickers: ["002064", "600810"]
+    keywords: ["锦纶", "尼龙"]
+
+  - name: 粘胶短纤
+    category: 化纤
+    tickers: ["600409", "002092"]
+    keywords: ["粘胶短纤", "粘胶"]
+
+  - name: 氨纶
+    category: 化纤
+    tickers: ["002064", "002254"]
+    keywords: ["氨纶"]
+
+  # ========== 2. 氯碱 ==========
+  - name: PVC
+    category: 氯碱
+    tickers: ["002092", "600075", "601216", "000635", "002002"]
+    keywords: ["PVC", "聚氯乙烯"]
+
+  - name: 烧碱
+    category: 氯碱
+    tickers: ["600618", "601678", "000698"]
+    keywords: ["烧碱", "液碱"]
+
+  # ========== 3. 煤化工 ==========
+  - name: 甲醇
+    category: 煤化工
+    tickers: ["600989", "600426", "600188", "600256"]
+    keywords: ["甲醇"]
+
+  - name: 乙二醇
+    category: 煤化工
+    tickers: ["600426", "600691", "600844"]
+    keywords: ["乙二醇", "MEG"]
+
+  - name: 尿素
+    category: 煤化工
+    tickers: ["600426", "600691", "000731", "600230"]
+    keywords: ["尿素"]
+
+  - name: DMF
+    category: 煤化工
+    tickers: ["600426"]
+    keywords: ["DMF", "二甲基甲酰胺"]
+
+  # ========== 4. 聚氨酯 ==========
+  - name: MDI
+    category: 聚氨酯
+    tickers: ["600309"]
+    keywords: ["MDI", "二苯基甲烷二异氰酸酯"]
+
+  - name: TDI
+    category: 聚氨酯
+    tickers: ["600309", "600230"]
+    keywords: ["TDI", "甲苯二异氰酸酯"]
+
+  - name: 聚醚
+    category: 聚氨酯
+    tickers: ["600309", "002165"]
+    keywords: ["聚醚", "聚醚多元醇"]
+
+  # ========== 5. 氟化工 ==========
+  - name: R22
+    category: 氟化工
+    tickers: ["600160", "603379", "605020", "600378"]
+    keywords: ["R22", "制冷剂R22"]
+
+  - name: R32
+    category: 氟化工
+    tickers: ["600160", "603379", "605020", "600378"]
+    keywords: ["R32", "制冷剂R32"]
+
+  - name: R134a
+    category: 氟化工
+    tickers: ["600160", "603379", "605020", "600378"]
+    keywords: ["R134a", "制冷剂R134a"]
+
+  - name: PVDF
+    category: 氟化工
+    tickers: ["600160", "300343"]
+    keywords: ["PVDF"]
+
+  - name: 氢氟酸
+    category: 氟化工
+    tickers: ["002407", "002709"]
+    keywords: ["氢氟酸", "无水氢氟酸"]
+
+  # ========== 6. 钛白粉 ==========
+  - name: 钛白粉
+    category: 钛白粉
+    tickers: ["002601", "002145", "002136", "000545"]
+    keywords: ["钛白粉"]
+
+  - name: 钛精矿
+    category: 钛白粉
+    tickers: ["002601"]
+    keywords: ["钛精矿", "钛矿"]
+
+  # ========== 7. 纯碱 ==========
+  - name: 纯碱
+    category: 纯碱
+    tickers: ["000683", "000822", "600409", "600328", "000707"]
+    keywords: ["纯碱", "碳酸钠", "轻质纯碱", "重质纯碱"]
+
+  # ========== 8. 磷化工 ==========
+  - name: 磷矿石
+    category: 磷化工
+    tickers: ["600096", "600141", "002895"]
+    keywords: ["磷矿石", "磷矿"]
+
+  - name: 磷酸一铵
+    category: 磷化工
+    tickers: ["600096", "600141"]
+    keywords: ["磷酸一铵", "一铵"]
+
+  - name: 磷酸二铵
+    category: 磷化工
+    tickers: ["600096", "600141"]
+    keywords: ["磷酸二铵", "二铵", "DAP"]
+
+  - name: 草甘膦
+    category: 磷化工
+    tickers: ["600141", "600596", "600486"]
+    keywords: ["草甘膦"]
+
+  # ========== 9. 农药化肥 ==========
+  - name: 菊酯
+    category: 农药
+    tickers: ["600486"]
+    keywords: ["菊酯", "高效氯氟氰菊酯"]
+
+  - name: 麦草畏
+    category: 农药
+    tickers: ["600486"]
+    keywords: ["麦草畏"]
+
+  - name: 钾肥
+    category: 化肥
+    tickers: ["000792", "000893"]
+    keywords: ["钾肥", "氯化钾"]
+
+  - name: 磷肥
+    category: 化肥
+    tickers: ["600096", "600141"]
+    keywords: ["磷肥"]
+
+  # ========== 10. 橡胶 ==========
+  - name: 炭黑
+    category: 橡胶
+    tickers: ["002068", "002753", "002442"]
+    keywords: ["炭黑"]
+
+  - name: 合成橡胶
+    category: 橡胶
+    tickers: ["002408"]
+    keywords: ["合成橡胶", "丁苯橡胶"]
+
+  - name: 顺丁橡胶
+    category: 橡胶
+    tickers: ["600028"]
+    keywords: ["顺丁橡胶", "BR"]
+
+  - name: 丁二烯
+    category: 橡胶
+    tickers: ["002408"]
+    keywords: ["丁二烯"]
+
+  # ========== 11. 炼化一体化 ==========
+  - name: 乙烯
+    category: 炼化
+    tickers: ["600028", "601857", "002493", "600346", "000301", "002648"]
+    keywords: ["乙烯"]
+
+  - name: 丙烯
+    category: 炼化
+    tickers: ["600028", "601857", "002493", "600346", "000301", "002648"]
+    keywords: ["丙烯"]
+
+  - name: 丙烯酸
+    category: 炼化
+    tickers: ["002648", "000698"]
+    keywords: ["丙烯酸"]
+
+  - name: 成品油
+    category: 炼化
+    tickers: ["600028", "601857", "002493", "600346", "000301"]
+    keywords: ["汽油", "柴油", "成品油"]
+
+  # ========== 12. 民爆 ==========
+  - name: 炸药
+    category: 民爆
+    tickers: ["002497", "002683", "002827", "002360"]
+    keywords: ["炸药", "乳化炸药"]
+
+  - name: 雷管
+    category: 民爆
+    tickers: ["002497", "002683", "002827", "002360"]
+    keywords: ["雷管", "电子雷管"]
+
+  # ========== 13. 其他精细化工 ==========
+  - name: 染料
+    category: 精细化工
+    tickers: ["600352", "002440", "300067"]
+    keywords: ["染料", "分散染料"]
+
+  - name: 颜料
+    category: 精细化工
+    tickers: ["300758", "603823"]
+    keywords: ["颜料", "有机颜料"]
+
+  - name: 添加剂
+    category: 精细化工
+    tickers: ["300596", "300910"]
+    keywords: ["添加剂", "抗氧剂", "润滑剂添加剂"]
+
+  - name: 维生素
+    category: 精细化工
+    tickers: ["002001", "600216", "002562"]
+    keywords: ["维生素", "VA", "VE", "VC"]
+
+  - name: 甜味剂
+    category: 精细化工
+    tickers: ["002597", "002286"]
+    keywords: ["甜味剂", "安赛蜜", "三氯蔗糖"]
+
+# ========== 开工率追踪产品 ==========
+utilization_products:
+  - 涤纶
+  - PVC
+  - 烧碱
+  - 甲醇
+  - 乙二醇
+  - MDI
+  - 钛白粉
+  - 纯碱
+  - 磷矿石
+  - 氟化工

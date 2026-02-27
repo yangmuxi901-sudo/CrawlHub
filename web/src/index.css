@@ -1,0 +1,37 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.shareholder-reports {
+  min-height: 100%;
+}
+
+/* 自定义滚动条 */
+.shareholder-reports ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.shareholder-reports ::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.shareholder-reports ::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* 表格样式优化 */
+.shareholder-reports .ant-table-small .ant-table-thead > tr > th {
+  background: #fafafa;
+}
+
+/* 日志样式 */
+.shareholder-reports .ant-list-item {
+  padding: 4px 0 !important;
+}

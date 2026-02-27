@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 日志文件
+*.log
+data/download_log.txt
+
+# 数据库
+data/*.db
+data/sync_record.db
+
+# PDF 文件
+data/ir_pdfs/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+._*
+.DS_Store
+Thumbs.db
+
+# Node.js
+web/node_modules/
+web/dist/
+
+# 爬取的数据文件
+data/
+output/
+*.csv
+*.xlsx
+
+# 临时文件
+*.tmp
+*.bak
+
+# 环境
+.env
+venv/
+.venv/

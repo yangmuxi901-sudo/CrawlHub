@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股东报告管理</title>
+    <!-- Ant Design CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5/dist/reset.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 24px;
+            background: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1890ff;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 4px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .progress-bar {
+            height: 20px;
+            background: #e8e8e8;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1890ff, #52c41a);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        .status-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-idle { background: #f0f0f0; color: #666; }
+        .status-running { background: #e6f7ff; color: #1890ff; }
+        .status-completed { background: #f6ffed; color: #52c41a; }
+        .status-failed { background: #fff2f0; color: #ff4d4f; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #1890ff; color: white; }
+        .btn-primary:hover { background: #40a9ff; }
+        .btn-danger { background: #ff4d4f; color: white; }
+        .btn-danger:hover { background: #ff7875; }
+        .btn-default { background: white; border: 1px solid #d9d9d9; color: #333; }
+        .btn-default:hover { border-color: #1890ff; color: #1890ff; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .table th {
+            background: #fafafa;
+            font-weight: 600;
+            color: #333;
+        }
+        .table tr:hover {
+            background: #fafafa;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .tag-sz { background: #f6ffed; color: #52c41a; }
+        .tag-sh { background: #e6f7ff; color: #1890ff; }
+        .tag-bj { background: #fff7e6; color: #fa8c16; }
+        .logs {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .log-error { color: #ff6b6b; }
+        .log-warning { color: #ffd93d; }
+        .log-success { color: #6bcb77; }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #1890ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 股东报告管理</h1>
+            <div>
+                <button class="btn btn-default" onclick="refreshAll()">
+                    🔄 刷新
+                </button>
+                <button class="btn btn-default" id="checkNewBtn" onclick="checkNewReports()">
+                    🔍 检测新报告
+                </button>
+                <button class="btn btn-primary" onclick="showStartModal()">
+                    ▶️ 启动任务
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="grid-4" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="statTotal">-</div>
+                <div class="stat-label">公司总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statPdfs">-</div>
+                <div class="stat-label">PDF 总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statWithFiles">-</div>
+                <div class="stat-label">有文件公司</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statLastDownload" style="font-size: 16px;">-</div>
+                <div class="stat-label">最后下载日期</div>
+            </div>
+        </div>
+
+        <!-- 任务状态 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">
+                    下载任务
+                    <span id="statusTag" class="status-tag status-idle">空闲</span>
+                </h3>
+                <div id="taskActions">
+                    <button id="stopBtn" class="btn btn-danger" style="display: none;" onclick="stopTask()">
+                        ⏹️ 停止任务
+                    </button>
+                </div>
+            </div>
+            <div id="progressSection" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #666; font-size: 14px;">
+                    <span id="progressText">0 / 0</span>
+                    <span id="progressInfo"></span>
+                </div>
+            </div>
+            <div id="idleMessage" style="color: #999;">
+                点击"启动任务"开始下载投资者关系活动记录表
+            </div>
+        </div>
+
+        <!-- 检测新报告结果 -->
+        <div class="card" id="newReportsCard" style="display: none;">
+            <h3 style="margin: 0; color: #fa8c16;">🔍 新报告检测结果</h3>
+            <div id="newReportsResult" style="margin-top: 16px;"></div>
+        </div>
+
+        <!-- 公司列表 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">公司列表</h3>
+                <div>
+                    <input type="text" id="searchInput" placeholder="搜索股票代码或公司名称"
+                           style="padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 6px; width: 200px;">
+                    <button class="btn btn-default" onclick="searchCompanies()">🔍 搜索</button>
+                </div>
+            </div>
+            <table class="table" id="companyTable">
+                <thead>
+                    <tr>
+                        <th>股票代码</th>
+                        <th>公司名称</th>
+                        <th>交易所</th>
+                        <th>本地文件</th>
+                        <th>最后同步</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="companyTableBody">
+                    <tr><td colspan="6" style="text-align: center; color: #999;">加载中...</td></tr>
+                </tbody>
+            </table>
+            <div id="pagination" style="margin-top: 16px; text-align: center;"></div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">📋 运行日志</h3>
+                <button class="btn btn-default" onclick="fetchLogs()">🔄 刷新日志</button>
+            </div>
+            <div class="logs" id="logsContainer">
+                暂无日志
+            </div>
+        </div>
+    </div>
+
+    <!-- 启动任务弹窗 -->
+    <div id="startModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+         background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="card" style="width: 400px; max-width: 90%;">
+            <h3>启动下载任务</h3>
+            <div style="margin: 16px 0;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">下载模式</label>
+                <select id="downloadMode" style="width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px;">
+                    <option value="incremental">增量下载（只下载新文件）</option>
+                    <option value="full">全量下载</option>
+                </select>
+            </div>
+            <div style="background: #e6f7ff; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 14px;">
+                💡 提示：下载过程可能需要较长时间，请耐心等待。
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn btn-default" onclick="hideStartModal()">取消</button>
+                <button class="btn btn-primary" onclick="startTask()">启动</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预览弹窗 -->
+    <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+         background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="card" style="width: 500px; max-width: 90%; max-height: 80vh; overflow: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 id="previewTitle" style="margin: 0;">文件列表</h3>
+                <button class="btn btn-default" onclick="document.getElementById('previewModal').style.display='none'">✕ 关闭</button>
+            </div>
+            <div id="previewFileList" style="max-height: 400px; overflow: auto;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 基础路径
+        const API_BASE = '';
+
+        // 状态
+        let currentPage = 1;
+        let pageSize = 10;
+        let searchQuery = '';
+        let statusPolling = null;
+
+        // 获取统计数据
+        async function fetchStats() {
+            try {
+                const res = await fetch(`${API_BASE}/stats/overview`);
+                const data = await res.json();
+                document.getElementById('statTotal').textContent = data.total_companies;
+                document.getElementById('statPdfs').textContent = data.total_pdfs;
+                document.getElementById('statWithFiles').textContent = `${data.companies_with_files} / ${data.total_companies}`;
+                document.getElementById('statLastDownload').textContent = data.last_download_date || '-';
+            } catch (e) {
+                console.error('获取统计数据失败:', e);
+            }
+        }
+
+        // 获取任务状态
+        async function fetchTaskStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/task/status`);
+                const data = await res.json();
+                updateTaskUI(data);
+            } catch (e) {
+                console.error('获取任务状态失败:', e);
+            }
+        }
+
+        // 更新任务 UI
+        function updateTaskUI(data) {
+            const statusTag = document.getElementById('statusTag');
+            const progressSection = document.getElementById('progressSection');
+            const idleMessage = document.getElementById('idleMessage');
+            const startBtn = document.querySelector('button[onclick="showStartModal()"]');
+            const stopBtn = document.getElementById('stopBtn');
+
+            // 更新状态标签
+            statusTag.className = 'status-tag status-' + data.status;
+            const statusText = {
+                idle: '空闲',
+                running: '运行中',
+                completed: '已完成',
+                failed: '失败'
+            };
+            statusTag.textContent = statusText[data.status] || data.status;
+
+            // 显示/隐藏进度条
+            if (data.status === 'running') {
+                progressSection.style.display = 'block';
+                idleMessage.style.display = 'none';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-flex';
+
+                const percent = Math.round((data.progress / data.total) * 100);
+                document.getElementById('progressFill').style.width = percent + '%';
+                document.getElementById('progressText').textContent = `${data.progress} / ${data.total}`;
+
+                let info = `已下载: ${data.downloaded} 份`;
+                if (data.elapsed_seconds) {
+                    info += ` | 耗时: ${formatDuration(data.elapsed_seconds)}`;
+                }
+                if (data.current_company) {
+                    info += ` | 当前: ${data.current_company}`;
+                }
+                document.getElementById('progressInfo').textContent = info;
+            } else {
+                progressSection.style.display = 'none';
+                idleMessage.style.display = 'block';
+                startBtn.style.display = 'inline-flex';
+                stopBtn.style.display = 'none';
+
+                if (data.status === 'completed') {
+                    idleMessage.innerHTML = `<span style="color: #52c41a;">✅ 任务完成，共下载 ${data.downloaded} 份文件</span>`;
+                } else if (data.status === 'failed') {
+                    idleMessage.innerHTML = `<span style="color: #ff4d4f;">❌ 任务失败: ${data.error_message}</span>`;
+                }
+            }
+        }
+
+        // 获取公司列表
+        async function fetchCompanies() {
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    page_size: pageSize,
+                    search: searchQuery
+                });
+                const res = await fetch(`${API_BASE}/companies?${params}`);
+                const data = await res.json();
+
+                const tbody = document.getElementById('companyTableBody');
+                tbody.innerHTML = data.items.map(item => `
+                    <tr>
+                        <td><span class="tag tag-${item.exchange}">${item.ticker}</span></td>
+                        <td>${item.company_name}</td>
+                        <td>${item.exchange === 'sz' ? '深圳' : item.exchange === 'sh' ? '上海' : '北京'}</td>
+                        <td><strong>${item.local_count}</strong></td>
+                        <td>${item.last_sync_date || '-'}</td>
+                        <td>
+                            <button class="btn btn-default" onclick="previewFiles('${item.ticker}')"
+                                    ${item.local_count === 0 ? 'disabled' : ''}>👁️ 预览</button>
+                            <button class="btn btn-default" onclick="downloadZip('${item.ticker}')"
+                                    ${item.local_count === 0 ? 'disabled' : ''}>📥 下载</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // 分页
+                const totalPages = Math.ceil(data.total / pageSize);
+                document.getElementById('pagination').innerHTML = `
+                    <span style="color: #666;">共 ${data.total} 条</span>
+                    ${currentPage > 1 ? `<button class="btn btn-default" onclick="goToPage(${currentPage - 1})">上一页</button>` : ''}
+                    <span style="margin: 0 8px;">第 ${currentPage} / ${totalPages} 页</span>
+                    ${currentPage < totalPages ? `<button class="btn btn-default" onclick="goToPage(${currentPage + 1})">下一页</button>` : ''}
+                `;
+            } catch (e) {
+                console.error('获取公司列表失败:', e);
+            }
+        }
+
+        // 获取日志
+        async function fetchLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/logs?lines=100`);
+                const data = await res.json();
+
+                const container = document.getElementById('logsContainer');
+                if (data.logs.length === 0) {
+                    container.textContent = '暂无日志';
+                    return;
+                }
+
+                container.innerHTML = data.logs.map(log => {
+                    let className = '';
+                    if (log.includes('[ERROR]')) className = 'log-error';
+                    else if (log.includes('[WARNING]')) className = 'log-warning';
+                    else if (log.includes('[成功]')) className = 'log-success';
+                    return `<div class="${className}">${escapeHtml(log)}</div>`;
+                }).join('');
+
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                console.error('获取日志失败:', e);
+            }
+        }
+
+        // 启动任务
+        async function startTask() {
+            const mode = document.getElementById('downloadMode').value;
+            try {
+                await fetch(`${API_BASE}/task/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        incremental: mode === 'incremental',
+                        reset_all: false
+                    })
+                });
+                hideStartModal();
+                fetchTaskStatus();
+            } catch (e) {
+                alert('启动失败: ' + e.message);
+            }
+        }
+
+        // 停止任务
+        async function stopTask() {
+            try {
+                await fetch(`${API_BASE}/task/stop`, { method: 'POST' });
+                fetchTaskStatus();
+            } catch (e) {
+                alert('停止失败: ' + e.message);
+            }
+        }
+
+        // 下载 ZIP
+        function downloadZip(ticker) {
+            window.open(`${API_BASE}/files/download/${ticker}`, '_blank');
+        }
+
+        // 预览文件
+        async function previewFiles(ticker) {
+            try {
+                const res = await fetch(`${API_BASE}/files/browse?ticker=${ticker}`);
+                const data = await res.json();
+
+                if (!data.files || data.files.length === 0) {
+                    alert('没有可预览的文件');
+                    return;
+                }
+
+                // 显示文件列表弹窗
+                const modal = document.getElementById('previewModal');
+                const listContainer = document.getElementById('previewFileList');
+
+                listContainer.innerHTML = data.files.map(file => `
+                    <div style="padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer;"
+                         onclick="openPdf('${ticker}', '${file}')"
+                         onmouseover="this.style.background='#f5f5f5'"
+                         onmouseout="this.style.background='white'">
+                        📄 ${file}
+                    </div>
+                `).join('');
+
+                document.getElementById('previewTitle').textContent = `${ticker} 文件列表 (${data.count} 份)`;
+                modal.style.display = 'flex';
+            } catch (e) {
+                alert('获取文件列表失败: ' + e.message);
+            }
+        }
+
+        // 打开 PDF
+        function openPdf(ticker, filename) {
+            window.open(`${API_BASE}/files/preview/${ticker}/${encodeURIComponent(filename)}`, '_blank');
+        }
+
+        // 检测新报告
+        async function checkNewReports() {
+            const btn = document.getElementById('checkNewBtn');
+            const resultDiv = document.getElementById('newReportsResult');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> 检测中...';
+            document.getElementById('newReportsCard').style.display = 'block';
+
+            // 分步骤显示进度
+            const steps = [
+                '<div style="color: #1890ff;">📡 正在查询深交所公告...</div>',
+                '<div style="color: #1890ff;">📡 正在查询上交所公告...</div>',
+                '<div style="color: #1890ff;">📂 正在读取本地文件...</div>',
+                '<div style="color: #1890ff;">🔍 正在对比日期...</div>',
+            ];
+
+            let currentStep = 0;
+            resultDiv.innerHTML = steps[0];
+
+            // 模拟步骤更新
+            const stepInterval = setInterval(() => {
+                currentStep++;
+                if (currentStep < steps.length) {
+                    resultDiv.innerHTML = steps[currentStep];
+                }
+            }, 500);
+
+            try {
+                const res = await fetch(`${API_BASE}/task/check_new?page_size=50`);
+                const data = await res.json();
+
+                clearInterval(stepInterval);
+
+                if (data.items.length === 0) {
+                    resultDiv.innerHTML = '<div style="color: #52c41a; padding: 16px;">✅ 所有公司的报告都是最新的！<br><span style="font-size: 12px; color: #999;">查询范围: ' + (data.date_range || '最近60天') + '</span></div>';
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="margin-bottom: 12px; color: #fa8c16;">
+                            🔍 发现 <strong>${data.items.length}</strong> 家公司有新报告，共 <strong>${data.total_new_reports}</strong> 份
+                            <br><span style="font-size: 12px; color: #999;">查询范围: ${data.date_range || '最近60天'} | 已自动排除本地已有日期的文件</span>
+                        </div>
+                        <table class="table" style="font-size: 12px;">
+                            <thead>
+                                <tr>
+                                    <th>股票代码</th>
+                                    <th>公司名称</th>
+                                    <th>本地</th>
+                                    <th>新增</th>
+                                    <th>新报告详情</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.items.map(item => `
+                                    <tr>
+                                        <td><span class="tag tag-${item.exchange}">${item.ticker}</span></td>
+                                        <td>${item.company_name}</td>
+                                        <td>${item.local_count}</td>
+                                        <td style="color: #fa8c16; font-weight: bold;">+${item.new_count}</td>
+                                        <td style="font-size: 11px;">
+                                            ${item.reports.slice(0, 3).map(r => `
+                                                <div style="margin-bottom: 2px;">
+                                                    <span style="color: #1890ff;">${r.date}</span>
+                                                    ${r.title}
+                                                </div>
+                                            `).join('')}
+                                            ${item.reports.length > 3 ? `<span style="color: #999;">...还有 ${item.reports.length - 3} 份</span>` : ''}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        <div style="margin-top: 12px;">
+                            <button class="btn btn-primary" onclick="hideNewReports(); showStartModal();">
+                                ▶️ 立即下载新报告
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<div style="color: #ff4d4f; padding: 16px;">检测失败: ${e.message}</div>`;
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🔍 检测新报告';
+        }
+
+        function hideNewReports() {
+            document.getElementById('newReportsResult').innerHTML = '';
+            document.getElementById('newReportsCard').style.display = 'none';
+        }
+
+        function showNewReports() {
+            document.getElementById('newReportsCard').style.display = 'block';
+        }
+
+        // 工具函数
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            if (h > 0) return `${h}时${m}分${s}秒`;
+            if (m > 0) return `${m}分${s}秒`;
+            return `${s}秒`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showStartModal() {
+            document.getElementById('startModal').style.display = 'flex';
+        }
+
+        function hideStartModal() {
+            document.getElementById('startModal').style.display = 'none';
+        }
+
+        function searchCompanies() {
+            searchQuery = document.getElementById('searchInput').value;
+            currentPage = 1;
+            fetchCompanies();
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            fetchCompanies();
+        }
+
+        function refreshAll() {
+            fetchStats();
+            fetchTaskStatus();
+            fetchCompanies();
+            fetchLogs();
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshAll();
+
+            // 定时刷新任务状态
+            statusPolling = setInterval(fetchTaskStatus, 2000);
+
+            // 回车搜索
+            document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchCompanies();
+            });
+        });
+    </script>
+</body>
+</html>
