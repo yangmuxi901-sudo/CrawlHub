@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.crawlhub.scheduler</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- 部署时修改为实际的 python 和脚本路径 -->
+        <string>/usr/bin/python3</string>
+        <string>/path/to/scheduler_service.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <!-- 部署时修改为项目根目录 -->
+    <string>/path/to/project</string>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/path/to/data/scheduler_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/path/to/data/scheduler_stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+        <key>PYTHONIOENCODING</key>
+        <string>utf-8</string>
+    </dict>
+</dict>
+</plist>
