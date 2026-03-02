@@ -1,0 +1,30 @@
+# 调度服务配置
+# cron 格式：分 时 日 月 星期（0=周日，1-5=周一至周五）
+
+scheduler:
+  timezone: "Asia/Shanghai"
+
+  jobs:
+    chemical_price:
+      enabled: true
+      cron: "30 9,18 * * 1-5"
+      misfire_grace_time: 3600
+
+    chemical_utilization:
+      enabled: false
+      cron: "30 18 * * 1-5"
+      misfire_grace_time: 3600
+
+    ak_irm:
+      enabled: true
+      cron: "0 2 * * *"
+      misfire_grace_time: 3600
+
+    ir_pdf:
+      enabled: true
+      cron: "0 3 * * *"
+      misfire_grace_time: 3600
+
+  logging:
+    max_bytes: 10485760
+    backup_count: 5
