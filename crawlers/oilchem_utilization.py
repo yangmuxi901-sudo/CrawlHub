@@ -1,15 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-隆众资讯化工开工率爬虫
-数据源: oilchem.net 行业报告/周报
-备选源: AkShare
+隆众资讯化工开工率爬虫 - 组合指标法
+通过景气度指数估算开工率
+
+数据源:
+  1. 同花顺行业指数（AkShare）
+  2. 期货库存数据（AkShare）
+  3. 期货价格数据（AkShare）
+  4. 宏观 PMI 数据（AkShare）
+
+计算方法:
+  景气度 = (行业指数分位数 + PMI - 库存分位数) / 3
+  开工率 = 50% + 景气度 * 0.45 (50%-95% 范围)
 """
 
 import os
 import sys
 import pandas as pd
 from datetime import datetime
+from typing import Dict, List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -17,60 +27,75 @@ from crawlers.base import (
     BaseCrawler, OUTPUT_DIR, load_products_config,
     get_last_crawl_date, update_crawl_date
 )
-from parsers.oilchem_parser import parse_utilization_table
+from crawlers.prosperity_index_crawler import ProsperityIndexCrawler
 
 
 class OilchemUtilizationCrawler(BaseCrawler):
-    """隆众资讯开工率爬虫"""
-
-    BASE_URL = "https://www.oilchem.net"
+    """化工开工率爬虫 - 组合指标法"""
 
     def __init__(self):
         super().__init__(name="OilchemUtilization")
         self.util_products = self.config.get("utilization_products", [])
         self.all_products = self.config.get("products", [])
         self.today = datetime.now().strftime("%Y-%m-%d")
+        self.prosperity_crawler = ProsperityIndexCrawler()
 
     def crawl(self):
-        """爬取开工率数据"""
+        """爬取开工率数据 - 使用景气度指数估算"""
         all_records = []
 
-        self.logger.log(f"待爬取开工率产品数: {len(self.util_products)}")
+        self.logger.log(f"待爬取开工率产品数：{len(self.util_products)}")
+        self.logger.log("数据源：组合指标法（行业指数 + 期货库存 +PMI）")
 
+        # 1. 计算整体景气度指数
+        self.logger.log("计算化工行业整体景气度指数...")
+        prosperity = self.prosperity_crawler.compute_prosperity_index()
+        self.logger.log(f"整体景气度：{prosperity['overall_index']}")
+        self.logger.log(f"  - 行业指数分项：{prosperity['industry_index']}")
+        self.logger.log(f"  - 库存分项：{prosperity['inventory_index']}")
+        self.logger.log(f"  - PMI 分项：{prosperity['pmi_index']}")
+
+        # 2. 为每个产品计算开工率
         for idx, product_name in enumerate(self.util_products, 1):
-            self.logger.log(f"[{idx}/{len(self.util_products)}] 正在爬取开工率: {product_name}")
+            self.logger.log(f"[{idx}/{len(self.util_products)}] 计算开工率：{product_name}")
 
             # 查找该产品的配置信息
             product_cfg = self._find_product_config(product_name)
-            keywords = product_cfg.get("keywords", [product_name]) if product_cfg else [product_name]
+            tickers = product_cfg.get("tickers", []) if product_cfg else []
 
-            # 优先隆众资讯
-            records = self._crawl_oilchem_utilization(product_name, keywords)
+            # 使用整体景气度计算开工率
+            # 后续可针对产品特性添加个性化调整因子
+            utilization = self.prosperity_crawler.prosperity_to_utilization(
+                prosperity["overall_index"]
+            )
 
-            # 备选: AkShare
-            if not records:
-                records = self._crawl_akshare_utilization(product_name, keywords)
+            record = {
+                "product_name": product_name,
+                "utilization_rate": round(utilization, 2),
+                "week_change": 0.0,  # 暂时无周度变化数据
+                "stat_date": self.today,
+                "source": "ProsperityIndex",
+                "prosperity_index": prosperity["overall_index"],
+            }
 
-            if records:
-                for r in records:
-                    r["stat_date"] = self.today
-                    r["source"] = r.get("source", "隆众资讯")
-                all_records.extend(records)
-                update_crawl_date(product_name, "utilization", self.today)
-                self.logger.log(f"  获取 {len(records)} 条开工率数据", "SUCCESS")
-            else:
-                self.logger.log(f"  未获取到数据", "WARNING")
+            if tickers:
+                record["tickers"] = ",".join(tickers)
 
-            self.sleep(2, 5)
+            all_records.append(record)
+            update_crawl_date(product_name, "utilization", self.today)
+            self.logger.log(f"  开工率估算：{utilization:.1f}%", "SUCCESS")
 
         if not all_records:
+            self.logger.log("没有产品需要爬取", "WARNING")
             return pd.DataFrame()
 
         df = pd.DataFrame(all_records)
         columns = [
             "product_name", "utilization_rate", "week_change",
-            "stat_date", "source"
+            "stat_date", "source", "prosperity_index"
         ]
+        if "tickers" in df.columns:
+            columns.append("tickers")
         for col in columns:
             if col not in df.columns:
                 df[col] = ""
@@ -83,66 +108,6 @@ class OilchemUtilizationCrawler(BaseCrawler):
                 return p
         return None
 
-    def _crawl_oilchem_utilization(self, product_name, keywords):
-        """从隆众资讯爬取开工率"""
-        records = []
-        for keyword in keywords:
-            search_url = f"{self.BASE_URL}/search/?keyword={keyword}开工率&type=report"
-            resp = self.safe_request(search_url)
-            if resp is None:
-                continue
-
-            parsed = parse_utilization_table(resp.text, product_name=product_name)
-            if parsed:
-                # 校验数据
-                for r in parsed:
-                    if self.validate_rate(r.get("utilization_rate"), product_name):
-                        records.append(r)
-                if records:
-                    break
-
-            self.sleep(1, 2)
-
-        return records
-
-    def _crawl_akshare_utilization(self, product_name, keywords):
-        """备选方案: 通过 AkShare 获取开工率"""
-        try:
-            import akshare as ak
-        except ImportError:
-            self.logger.log("AkShare 未安装，跳过备选数据源", "WARNING")
-            return []
-
-        records = []
-        try:
-            # 尝试 AkShare 产能利用率接口
-            for keyword in keywords:
-                try:
-                    df = ak.futures_inventory_em(symbol=keyword)
-                    if df is not None and not df.empty:
-                        for col in df.columns:
-                            if "开工" in col or "利用" in col:
-                                last_row = df.iloc[-1]
-                                try:
-                                    rate = float(last_row[col])
-                                    if self.validate_rate(rate, product_name):
-                                        records.append({
-                                            "product_name": product_name,
-                                            "utilization_rate": round(rate, 2),
-                                            "week_change": 0.0,
-                                            "source": "AkShare",
-                                        })
-                                except (ValueError, TypeError):
-                                    continue
-                    if records:
-                        break
-                except Exception:
-                    continue
-        except Exception as e:
-            self.logger.log(f"AkShare 获取开工率失败: {product_name} - {e}", "WARNING")
-
-        return records
-
 
 # ============== 独立运行入口 ==============
 def main():
@@ -154,11 +119,13 @@ def main():
         today_str = datetime.now().strftime("%Y%m%d")
         output_path = os.path.join(OUTPUT_DIR, f"chemical_utilization_{today_str}.csv")
         df.to_csv(output_path, index=False, encoding="utf-8-sig")
-        crawler.logger.log(f"数据已保存: {output_path}")
+        crawler.logger.log(f"数据已保存：{output_path}")
 
         latest_path = os.path.join(OUTPUT_DIR, "chemical_utilization.csv")
         df.to_csv(latest_path, index=False, encoding="utf-8-sig")
-        crawler.logger.log(f"最新数据已保存: {latest_path}")
+        crawler.logger.log(f"最新数据已保存：{latest_path}")
+    else:
+        crawler.logger.log("未获取到开工率数据")
 
     return df
 
