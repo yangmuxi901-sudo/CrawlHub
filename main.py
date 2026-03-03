@@ -25,7 +25,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
 from crawlers.base import Logger, OUTPUT_DIR, init_chemical_db
-from crawlers.oilchem_price import OilchemPriceCrawler
+from crawlers.akshare_chem_crawler import AkShareChemFuturesCrawler
 from crawlers.oilchem_utilization import OilchemUtilizationCrawler
 from storage.csv_exporter import export_prices_csv, export_utilization_csv
 from scripts.import_chemical_data import import_prices, import_utilization
@@ -59,7 +59,7 @@ def main():
     # ===== 1. 爬取价格 =====
     if run_price:
         logger.log("--- 阶段1: 爬取化工产品价格 ---")
-        crawler = OilchemPriceCrawler()
+        crawler = AkShareChemFuturesCrawler()
         df_price = crawler.run()
         if not df_price.empty:
             paths = export_prices_csv(df_price, OUTPUT_DIR)

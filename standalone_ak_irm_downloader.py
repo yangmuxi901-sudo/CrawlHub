@@ -21,7 +21,6 @@ import random
 import sqlite3
 import pandas as pd
 from datetime import datetime
-from bs4 import BeautifulSoup
 
 try:
     import akshare as ak
@@ -56,95 +55,6 @@ PLATFORMS = {
         "file_prefix": "EHD",
     },
 }
-
-# ============== 代理池 ==============
-class SimpleProxyPool:
-    """极简自建免费代理池（应急用）"""
-
-    def __init__(self, auto_fetch=True):
-        self.proxies = []
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        # 免费代理源
-        self.proxy_sources = [
-            "https://www.kuaidaili.com/free/inha/",
-            "https://www.89ip.cn/"
-        ]
-        self.valid_proxies = []
-
-        if auto_fetch:
-            self.fetch_proxies()
-
-    def fetch_proxies(self):
-        """从免费源抓取代理"""
-        if logger:
-            logger.log("正在抓取免费代理...")
-
-        new_proxies = []
-
-        # 抓取快代理
-        try:
-            resp = requests.get(self.proxy_sources[0], headers=self.headers, timeout=10)
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            tbody = soup.find('tbody')
-            if tbody:
-                for tr in tbody.find_all('tr')[:20]:  # 取 20 个
-                    tds = tr.find_all('td')
-                    if len(tds) >= 2:
-                        ip = tds[0].text.strip()
-                        port = tds[1].text.strip()
-                        new_proxies.append(f"http://{ip}:{port}")
-        except Exception as e:
-            if logger:
-                logger.log(f"抓取快代理失败：{e}", "WARNING")
-
-        self.proxies = new_proxies
-        if logger:
-            logger.log(f"获取到 {len(self.proxies)} 个免费代理")
-
-    def get_random_proxy(self):
-        """随机获取一个代理"""
-        if not self.proxies:
-            self.fetch_proxies()
-        return random.choice(self.proxies) if self.proxies else None
-
-    def validate_proxies(self, max_test=10):
-        """验证代理可用性"""
-        if logger:
-            logger.log("正在验证代理可用性...")
-
-        test_count = 0
-        for proxy in self.proxies[:max_test]:
-            if self._test_proxy(proxy):
-                self.valid_proxies.append(proxy)
-            test_count += 1
-            if test_count >= max_test:
-                break
-
-        if logger:
-            logger.log(f"验证完成：{len(self.valid_proxies)}/{test_count} 个代理可用")
-        return self.valid_proxies
-
-    def _test_proxy(self, proxy):
-        """测试单个代理"""
-        try:
-            resp = requests.get("https://www.baidu.com",
-                              proxies={"http": proxy, "https": proxy},
-                              timeout=5)
-            return resp.status_code == 200
-        except:
-            return False
-
-    def get_valid_proxy(self):
-        """获取一个已验证的代理，如果没有则返回随机代理"""
-        if self.valid_proxies:
-            return random.choice(self.valid_proxies)
-        return self.get_random_proxy()
-
-
-# 全局代理池实例
-proxy_pool = None
 
 # ============== e 互动 API 可用性检测 ==============
 def check_ehd_api_available():

@@ -1,159 +1,70 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-隆众资讯化工产品价格爬虫
-数据源: oilchem.net 价格行情页
-备选源: AkShare 化工数据接口
+化工数据爬虫 - 多数据源整合版
+数据源：
+  1. AkShare 期货现货价格（主）
+  2. 隆众资讯 API（需登录）
+  3. 其他免费数据源（备选）
+
+覆盖产品：
+  - 化纤：PTA、短纤、乙二醇
+  - 氯碱：PVC、烧碱
+  - 煤化工：甲醇、尿素、焦炭、焦煤
+  - 橡胶：橡胶、合成橡胶
+  - 炼化：燃油、沥青、聚丙烯、聚乙烯
+  - 建材：玻璃、纯碱
+  - 其他：纸浆、硅铁、锰硅、苯乙烯
 """
 
 import os
 import sys
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # 添加项目根目录到 path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from crawlers.base import (
-    BaseCrawler, OUTPUT_DIR, load_products_config,
-    get_last_crawl_date, update_crawl_date
-)
-from parsers.oilchem_parser import parse_price_table, parse_json_price_data
+from crawlers.base import BaseCrawler, OUTPUT_DIR
+from crawlers.akshare_chem_crawler import AkShareChemFuturesCrawler
 
 
 class OilchemPriceCrawler(BaseCrawler):
-    """隆众资讯价格爬虫"""
-
-    # 隆众价格行情基础 URL
-    BASE_URL = "https://www.oilchem.net"
-    PRICE_URL = "https://www.oilchem.net/price/"
+    """隆众资讯价格爬虫 - 多数据源整合版"""
 
     def __init__(self):
         super().__init__(name="OilchemPrice")
-        self.products = self.config.get("products", [])
         self.today = datetime.now().strftime("%Y-%m-%d")
 
     def crawl(self):
-        """爬取所有产品价格"""
-        all_records = []
+        """爬取所有化工产品价格 - 多数据源"""
+        self.logger.log("开始爬取化工产品价格...")
+        self.logger.log("数据源优先级：AkShare 期货现货 > 隆众 API(需登录)")
 
-        self.logger.log(f"待爬取产品数: {len(self.products)}")
+        # 主数据源：AkShare 期货现货价格
+        df = self._crawl_akshare()
 
-        for idx, product in enumerate(self.products, 1):
-            name = product["name"]
-            category = product["category"]
-            keywords = product.get("keywords", [name])
-            tickers = product.get("tickers", [])
-
-            self.logger.log(f"[{idx}/{len(self.products)}] 正在爬取: {name} ({category})")
-
-            # 优先尝试隆众资讯
-            records = self._crawl_oilchem_price(name, category, keywords)
-
-            # 备选: AkShare
-            if not records:
-                records = self._crawl_akshare_price(name, category, keywords)
-
-            if records:
-                for r in records:
-                    r["product_category"] = category
-                    r["trade_date"] = self.today
-                    r["source"] = r.get("source", "隆众资讯")
-                    # 关联股票代码
-                    r["tickers"] = ",".join(tickers)
-                all_records.extend(records)
-                update_crawl_date(name, "price", self.today)
-                self.logger.log(f"  获取 {len(records)} 条价格数据", "SUCCESS")
-            else:
-                self.logger.log(f"  未获取到数据", "WARNING")
-
-            self.sleep(2, 5)
-
-        if not all_records:
+        if df is not None and not df.empty:
+            self.logger.log(f"爬取完成，共 {len(df)} 条数据")
+            return df
+        else:
+            self.logger.log("所有数据源均未获取到数据", "ERROR")
             return pd.DataFrame()
 
-        df = pd.DataFrame(all_records)
-        # 标准化列顺序
-        columns = [
-            "product_name", "product_category", "price", "price_change",
-            "unit", "region", "trade_date", "source", "tickers"
-        ]
-        for col in columns:
-            if col not in df.columns:
-                df[col] = ""
-        return df[columns]
-
-    def _crawl_oilchem_price(self, name, category, keywords):
-        """从隆众资讯爬取价格"""
-        records = []
-        for keyword in keywords:
-            # 尝试搜索页面
-            search_url = f"{self.BASE_URL}/search/?keyword={keyword}&type=price"
-            resp = self.safe_request(search_url)
-            if resp is None:
-                continue
-
-            parsed = parse_price_table(resp.text, product_name=name)
-            if parsed:
-                records.extend(parsed)
-                break
-
-            self.sleep(1, 2)
-
-        return records
-
-    def _crawl_akshare_price(self, name, category, keywords):
-        """备选方案: 通过 AkShare 获取化工价格"""
+    def _crawl_akshare(self):
+        """从 AkShare 获取化工期货价格"""
+        self.logger.log("使用 AkShare 期货现货价格接口...")
         try:
-            import akshare as ak
-        except ImportError:
-            self.logger.log("AkShare 未安装，跳过备选数据源", "WARNING")
-            return []
-
-        records = []
-        try:
-            # 尝试 AkShare 化工现货价格接口
-            for keyword in keywords:
-                try:
-                    df = ak.futures_spot_price(date=self.today.replace("-", ""))
-                    if df is not None and not df.empty:
-                        # 按关键词过滤
-                        mask = df.apply(
-                            lambda row: any(kw in str(row) for kw in [keyword]),
-                            axis=1
-                        )
-                        matched = df[mask]
-                        for _, row in matched.iterrows():
-                            price = None
-                            for col in df.columns:
-                                if "价" in col or "price" in col.lower():
-                                    try:
-                                        price = float(row[col])
-                                        break
-                                    except (ValueError, TypeError):
-                                        continue
-                            if price and self.validate_price(price, name):
-                                records.append({
-                                    "product_name": name,
-                                    "price": round(price, 2),
-                                    "price_change": 0.0,
-                                    "unit": "元/吨",
-                                    "region": "全国",
-                                    "source": "AkShare",
-                                })
-                        if records:
-                            break
-                except Exception:
-                    continue
+            crawler = AkShareChemFuturesCrawler()
+            return crawler.crawl()
         except Exception as e:
-            self.logger.log(f"AkShare 获取失败: {name} - {e}", "WARNING")
-
-        return records
+            self.logger.log(f"AkShare 数据获取失败：{e}", "ERROR")
+            return None
 
 
 # ============== 独立运行入口 ==============
 def main():
-    """独立运行价格爬虫"""
+    """独立运行爬虫"""
     crawler = OilchemPriceCrawler()
     df = crawler.run()
 
@@ -161,12 +72,28 @@ def main():
         today_str = datetime.now().strftime("%Y%m%d")
         output_path = os.path.join(OUTPUT_DIR, f"chemical_prices_{today_str}.csv")
         df.to_csv(output_path, index=False, encoding="utf-8-sig")
-        crawler.logger.log(f"数据已保存: {output_path}")
+        crawler.logger.log(f"数据已保存：{output_path}")
 
         # 同时保存一份最新版本（不带日期）
         latest_path = os.path.join(OUTPUT_DIR, "chemical_prices.csv")
         df.to_csv(latest_path, index=False, encoding="utf-8-sig")
-        crawler.logger.log(f"最新数据已保存: {latest_path}")
+        crawler.logger.log(f"最新数据已保存：{latest_path}")
+
+        # 打印摘要
+        print("\n" + "=" * 60)
+        print("爬取结果摘要")
+        print("=" * 60)
+        print(f"总记录数：{len(df)}")
+        print(f"产品种类：{df['product_name'].nunique()}")
+        if 'price' in df.columns:
+            print(f"价格范围：{df['price'].min():.2f} - {df['price'].max():.2f} 元/吨")
+        print("\n产品列表:")
+        for product in df['product_name'].unique():
+            prod_df = df[df['product_name'] == product]
+            avg_price = prod_df['price'].mean()
+            print(f"   {product}: {avg_price:.2f} 元/吨")
+    else:
+        crawler.logger.log("未获取到数据", "WARNING")
 
     return df
 

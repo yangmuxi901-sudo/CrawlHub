@@ -8,14 +8,12 @@
 
     <key>ProgramArguments</key>
     <array>
-        <!-- 部署时修改为实际的 python 和脚本路径 -->
-        <string>/usr/bin/python3</string>
-        <string>/path/to/scheduler_service.py</string>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Volumes/KESU-1/Data-Fin/股东报告/scheduler_service.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <!-- 部署时修改为项目根目录 -->
-    <string>/path/to/project</string>
+    <string>/Volumes/KESU-1/Data-Fin/股东报告</string>
 
     <key>KeepAlive</key>
     <true/>
@@ -24,10 +22,10 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/path/to/data/scheduler_stdout.log</string>
+    <string>/Volumes/KESU-1/Data-Fin/股东报告/data/scheduler_stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/path/to/data/scheduler_stderr.log</string>
+    <string>/Volumes/KESU-1/Data-Fin/股东报告/data/scheduler_stderr.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrawlHub 调度服务管理面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 20px; }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 { color: #555; margin-bottom: 15px; font-size: 18px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .stat-box.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .stat-box .value { font-size: 32px; font-weight: bold; }
+        .stat-box .label { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+
+        .status { padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.failed { background: #f8d7da; color: #721c24; }
+
+        .job-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .job-name { font-weight: 600; color: #333; }
+        .job-cron { color: #666; font-size: 13px; }
+        .job-status { padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+        .job-status.enabled { background: #d4edda; color: #155724; }
+        .job-status.disabled { background: #eee; color: #666; }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .refresh-btn:hover { background: #5568d3; }
+
+        .log-detail { color: #666; font-size: 13px; max-width: 400px; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 CrawlHub 调度服务管理面板</h1>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-box">
+                <div class="value" id="totalRuns">-</div>
+                <div class="label">总执行次数</div>
+            </div>
+            <div class="stat-box success">
+                <div class="value" id="successRuns">-</div>
+                <div class="label">成功次数</div>
+            </div>
+            <div class="stat-box warning">
+                <div class="value" id="failedRuns">-</div>
+                <div class="label">失败次数</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="totalRecords">-</div>
+                <div class="label">总记录数</div>
+            </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="card">
+            <h2>📋 任务配置</h2>
+            <div id="jobList"></div>
+        </div>
+
+        <!-- 执行日志 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>📜 执行日志</h2>
+                <button class="refresh-btn" onclick="loadLogs()">🔄 刷新</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>任务</th>
+                        <th>状态</th>
+                        <th>记录数</th>
+                        <th>详情</th>
+                    </tr>
+                </thead>
+                <tbody id="logTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        // 加载数据
+        async function loadData() {
+            await loadStats();
+            await loadJobs();
+            await loadLogs();
+        }
+
+        // 加载统计
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}/stats`);
+                const data = await res.json();
+                document.getElementById('totalRuns').textContent = data.total_runs || 0;
+                document.getElementById('successRuns').textContent = data.success_runs || 0;
+                document.getElementById('failedRuns').textContent = data.failed_runs || 0;
+                document.getElementById('totalRecords').textContent = data.total_records || 0;
+            } catch (e) {
+                console.error('加载统计失败:', e);
+            }
+        }
+
+        // 加载任务列表
+        async function loadJobs() {
+            const jobs = [
+                { name: 'chemical_price', label: '化工价格', cron: '30 9,18 * * 1-5' },
+                { name: 'chemical_utilization', label: '化工开工率', cron: '30 18 * * 1-5' },
+                { name: 'ak_irm', label: '互动平台问答', cron: '0 2 * * *' },
+                { name: 'ir_pdf', label: 'IR 纪要 PDF', cron: '0 3 * * *' },
+            ];
+
+            const html = jobs.map(job => `
+                <div class="job-item">
+                    <div>
+                        <div class="job-name">${job.label} (${job.name})</div>
+                        <div class="job-cron">Cron: ${job.cron}</div>
+                    </div>
+                    <span class="job-status enabled">已启用</span>
+                </div>
+            `).join('');
+            document.getElementById('jobList').innerHTML = html;
+        }
+
+        // 加载日志
+        async function loadLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/logs?limit=20`);
+                const logs = await res.json();
+
+                const html = logs.map(log => `
+                    <tr>
+                        <td>${log.start_time || '-'}</td>
+                        <td>${getJobLabel(log.job_name)}</td>
+                        <td><span class="status ${log.status}">${log.status === 'success' ? '✅ 成功' : '❌ 失败'}</span></td>
+                        <td>${log.records_count || 0}</td>
+                        <td class="log-detail" title="${log.error_msg || ''}">${log.error_msg || '-'}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('logTable').innerHTML = html;
+            } catch (e) {
+                console.error('加载日志失败:', e);
+            }
+        }
+
+        function getJobLabel(name) {
+            const labels = {
+                'chemical_price': '化工价格',
+                'chemical_utilization': '化工开工率',
+                'ak_irm': '互动平台问答',
+                'ir_pdf': 'IR 纪要 PDF',
+            };
+            return labels[name] || name;
+        }
+
+        // 初始加载
+        loadData();
+
+        // 每 30 秒自动刷新
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>

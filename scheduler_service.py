@@ -144,7 +144,15 @@ def run_ak_irm():
     ehd_available, _ = mod.check_ehd_api_available()
     df = mod.load_company_list()
     stats = mod.process_all_stocks(df, mod.ATTACHMENT_DIR, skip_ehd=not ehd_available)
-    return stats["hdy"]["downloaded"] + stats["ehd"]["downloaded"]
+
+    # 返回详细统计
+    hdy_downloaded = stats["hdy"]["downloaded"]
+    ehd_downloaded = stats["ehd"]["downloaded"]
+    return {
+        "total": hdy_downloaded + ehd_downloaded,
+        "互动易": hdy_downloaded,
+        "e 互动": ehd_downloaded,
+    }
 
 
 def run_ir_pdf():
@@ -159,7 +167,7 @@ def run_ir_pdf():
 
     df = mod.load_company_list()
     total_downloaded, _, _, _ = mod.process_all_stocks(df, mod.PDF_DIR)
-    return total_downloaded
+    return {"PDF 纪要": total_downloaded}
 
 
 # 任务注册表
