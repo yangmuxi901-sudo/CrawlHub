@@ -11,8 +11,9 @@
             background: #f5f5f5;
             padding: 20px;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         h1 { color: #333; margin-bottom: 20px; }
+        h2 { color: #555; margin-bottom: 15px; font-size: 18px; }
 
         .card {
             background: white;
@@ -21,7 +22,6 @@
             padding: 20px;
             margin-bottom: 20px;
         }
-        .card h2 { color: #555; margin-bottom: 15px; font-size: 18px; }
 
         .stats-grid {
             display: grid;
@@ -38,6 +38,7 @@
         }
         .stat-box.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .stat-box.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .stat-box.info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
         .stat-box .value { font-size: 32px; font-weight: bold; }
         .stat-box .label { font-size: 14px; opacity: 0.9; margin-top: 5px; }
 
@@ -77,6 +78,21 @@
         .refresh-btn:hover { background: #5568d3; }
 
         .log-detail { color: #666; font-size: 13px; max-width: 400px; overflow: hidden; text-overflow: ellipsis; }
+
+        .news-source { padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-right: 8px; }
+        .news-source.cls { background: #ff6b6b; color: white; }
+        .news-source.yicai { background: #4ecdc4; color: white; }
+        .news-source.stats { background: #45b7d1; color: white; }
+        .news-source.pbc { background: #96ceb4; color: white; }
+        .news-source.sohu { background: #ffeaa7; color: #333; }
+        .news-source.cnstock { background: #f5a623; color: white; }
+
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .exchange-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .exchange-badge.HKEX { background: #e91e63; color: white; }
+        .exchange-badge.SH { background: #2196f3; color: white; }
+        .exchange-badge.SZ { background: #4caf50; color: white; }
     </style>
 </head>
 <body>
@@ -97,7 +113,7 @@
                 <div class="value" id="failedRuns">-</div>
                 <div class="label">失败次数</div>
             </div>
-            <div class="stat-box">
+            <div class="stat-box info">
                 <div class="value" id="totalRecords">-</div>
                 <div class="label">总记录数</div>
             </div>
@@ -128,16 +144,54 @@
                 <tbody id="logTable"></tbody>
             </table>
         </div>
+
+        <!-- 新闻数据概览 -->
+        <div class="card">
+            <h2>📰 新闻数据概览</h2>
+            <div id="newsStats"></div>
+        </div>
+
+        <!-- 交易所公告 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>📢 交易所公告</h2>
+                <button class="refresh-btn" onclick="loadAnnouncements()">🔄 刷新</button>
+            </div>
+            <div class="filter-bar">
+                <select id="exchangeFilter" onchange="loadAnnouncements()">
+                    <option value="all">全部交易所</option>
+                    <option value="HKEX">港交所</option>
+                    <option value="SH">上交所</option>
+                    <option value="SZ">深交所</option>
+                </select>
+                <input type="text" id="keywordSearch" placeholder="搜索关键词..." onkeyup="filterAnnouncements()">
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>交易所</th>
+                        <th>类别</th>
+                        <th>标题</th>
+                        <th>链接</th>
+                    </tr>
+                </thead>
+                <tbody id="announcementTable"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
         const API_BASE = '/api';
+        let announcementsData = [];  // 缓存公告数据用于前端筛选
 
         // 加载数据
         async function loadData() {
             await loadStats();
             await loadJobs();
             await loadLogs();
+            await loadNewsStats();
+            await loadAnnouncements();
         }
 
         // 加载统计
@@ -156,29 +210,31 @@
 
         // 加载任务列表
         async function loadJobs() {
-            const jobs = [
-                { name: 'chemical_price', label: '化工价格', cron: '30 9,18 * * 1-5' },
-                { name: 'chemical_utilization', label: '化工开工率', cron: '30 18 * * 1-5' },
-                { name: 'ak_irm', label: '互动平台问答', cron: '0 2 * * *' },
-                { name: 'ir_pdf', label: 'IR 纪要 PDF', cron: '0 3 * * *' },
-            ];
+            try {
+                const res = await fetch(`${API_BASE}/jobs`);
+                const jobs = await res.json();
 
-            const html = jobs.map(job => `
-                <div class="job-item">
-                    <div>
-                        <div class="job-name">${job.label} (${job.name})</div>
-                        <div class="job-cron">Cron: ${job.cron}</div>
+                const html = Object.entries(jobs).map(([name, job]) => `
+                    <div class="job-item">
+                        <div>
+                            <div class="job-name">${job.label} (${name})</div>
+                            <div class="job-cron">Cron: ${job.cron}</div>
+                        </div>
+                        <span class="job-status ${job.enabled ? 'enabled' : 'disabled'}">
+                            ${job.enabled ? '✓ 已启用' : '✗ 已禁用'}
+                        </span>
                     </div>
-                    <span class="job-status enabled">已启用</span>
-                </div>
-            `).join('');
-            document.getElementById('jobList').innerHTML = html;
+                `).join('');
+                document.getElementById('jobList').innerHTML = html;
+            } catch (e) {
+                console.error('加载任务列表失败:', e);
+            }
         }
 
         // 加载日志
         async function loadLogs() {
             try {
-                const res = await fetch(`${API_BASE}/logs?limit=20`);
+                const res = await fetch(`${API_BASE}/logs?limit=30`);
                 const logs = await res.json();
 
                 const html = logs.map(log => `
@@ -196,12 +252,99 @@
             }
         }
 
+        // 加载新闻统计
+        async function loadNewsStats() {
+            try {
+                const res = await fetch(`${API_BASE}/news-stats`);
+                const data = await res.json();
+
+                const html = data.map(item => `
+                    <div style="display: inline-block; margin: 10px; padding: 15px; background: #f8f9fa; border-radius: 8px; min-width: 200px;">
+                        <div style="font-size: 24px; font-weight: bold; color: #667eea;">${item.count}</div>
+                        <div style="font-size: 14px; color: #666; margin-top: 5px;">
+                            <span class="news-source ${getSourceClass(item.source)}">${item.source}</span>
+                            <div style="margin-top: 8px; font-size: 12px;">最新：${item.latest || '-'}</div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('newsStats').innerHTML = html;
+            } catch (e) {
+                console.error('加载新闻统计失败:', e);
+            }
+        }
+
+        // 加载公告
+        async function loadAnnouncements() {
+            try {
+                const exchange = document.getElementById('exchangeFilter').value;
+                const res = await fetch(`${API_BASE}/announcements?exchange=${exchange}&limit=50`);
+                const data = await res.json();
+                announcementsData = data;  // 缓存数据
+                renderAnnouncements(data);
+            } catch (e) {
+                console.error('加载公告失败:', e);
+            }
+        }
+
+        // 渲染公告表格
+        function renderAnnouncements(data) {
+            const html = data.map(item => `
+                <tr>
+                    <td>${item.pub_date || '-'}</td>
+                    <td><span class="exchange-badge ${item.exchange}">${item.exchange}</span></td>
+                    <td>${item.category || '-'}</td>
+                    <td>${escapeHtml(item.title)}</td>
+                    <td><a href="${item.link}" target="_blank" style="color: #667eea;">查看</a></td>
+                </tr>
+            `).join('');
+            document.getElementById('announcementTable').innerHTML = html;
+        }
+
+        // 筛选公告（前端关键词搜索）
+        function filterAnnouncements() {
+            const keyword = document.getElementById('keywordSearch').value.toLowerCase();
+            if (!keyword) {
+                renderAnnouncements(announcementsData);
+                return;
+            }
+            const filtered = announcementsData.filter(item =>
+                item.title.toLowerCase().includes(keyword) ||
+                (item.category && item.category.toLowerCase().includes(keyword))
+            );
+            renderAnnouncements(filtered);
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getSourceClass(source) {
+            const classes = {
+                '财联社': 'cls',
+                '第一财经': 'yicai',
+                '国家统计局': 'stats',
+                '中国人民银行': 'pbc',
+                '搜狐财经': 'sohu',
+            };
+            return classes[source] || '';
+        }
+
         function getJobLabel(name) {
             const labels = {
                 'chemical_price': '化工价格',
                 'chemical_utilization': '化工开工率',
                 'ak_irm': '互动平台问答',
                 'ir_pdf': 'IR 纪要 PDF',
+                'news_cls': '财联社电报',
+                'news_yicai': '第一财经',
+                'news_gov_stats': '国家统计局',
+                'news_pbc': '中国人民银行',
+                'news_sohu': '搜狐财经',
+                'news_cnstock': '上海证券报',
+                'news_hkex': '港交所新闻',
             };
             return labels[name] || name;
         }

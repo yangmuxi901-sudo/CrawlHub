@@ -36,6 +36,12 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.send_json(self.get_logs(limit))
         elif path == '/api/jobs':
             self.send_json(self.get_jobs())
+        elif path == '/api/news-stats':
+            self.send_json(self.get_news_stats())
+        elif path == '/api/announcements':
+            exchange = query.get('exchange', [None])[0]
+            limit = int(query.get('limit', [50])[0])
+            self.send_json(self.get_announcements(exchange, limit))
         elif path == '/':
             self.serve_file(os.path.join(WEB_DIR, 'dashboard.html'))
         else:
@@ -112,6 +118,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     def get_jobs(self):
         """获取任务配置"""
         return {
+            # 爬虫任务
             "chemical_price": {
                 "label": "化工价格",
                 "enabled": True,
@@ -122,6 +129,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 "enabled": True,
                 "cron": "30 18 * * 1-5",
             },
+            # 互动平台任务
             "ak_irm": {
                 "label": "互动平台问答",
                 "enabled": True,
@@ -132,7 +140,105 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 "enabled": True,
                 "cron": "0 3 * * *",
             },
+            # 新闻爬取任务
+            "news_cls": {
+                "label": "财联社电报",
+                "enabled": True,
+                "cron": "*/10 9-16 * * 1-5",
+            },
+            "news_yicai": {
+                "label": "第一财经",
+                "enabled": True,
+                "cron": "*/15 9-17 * * 1-5",
+            },
+            "news_gov_stats": {
+                "label": "国家统计局",
+                "enabled": True,
+                "cron": "0 10 * * 1-5",
+            },
+            "news_pbc": {
+                "label": "中国人民银行",
+                "enabled": True,
+                "cron": "0 11 * * 1-5",
+            },
+            "news_sohu": {
+                "label": "搜狐财经",
+                "enabled": False,
+                "cron": "0 15 * * 1-5",
+            },
+            # 新增金融数据源
+            "news_cnstock": {
+                "label": "上海证券报",
+                "enabled": True,
+                "cron": "0 9,15 * * 1-5",
+            },
+            "news_hkex": {
+                "label": "港交所新闻",
+                "enabled": True,
+                "cron": "*/30 9-18 * * 1-5",
+            },
         }
+
+    def get_news_stats(self):
+        """获取新闻统计数据"""
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT source, COUNT(*) as count, MAX(pub_date) as latest
+            FROM finance_news
+            GROUP BY source
+            ORDER BY count DESC
+        """)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                "source": row[0],
+                "count": row[1],
+                "latest": row[2],
+            }
+            for row in rows
+        ]
+
+    def get_announcements(self, exchange=None, limit=50):
+        """获取交易所公告"""
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        if exchange and exchange != 'all':
+            cursor.execute("""
+                SELECT exchange, security_code, security_name, title, pub_date, category, link
+                FROM exchange_announcements
+                WHERE exchange = ?
+                ORDER BY pub_date DESC
+                LIMIT ?
+            """, (exchange, limit))
+        else:
+            cursor.execute("""
+                SELECT exchange, security_code, security_name, title, pub_date, category, link
+                FROM exchange_announcements
+                ORDER BY pub_date DESC
+                LIMIT ?
+            """, (limit,))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                "exchange": row[0],
+                "security_code": row[1],
+                "security_name": row[2],
+                "title": row[3],
+                "pub_date": row[4],
+                "category": row[5],
+                "link": row[6],
+            }
+            for row in rows
+        ]
 
     def send_json(self, data):
         """发送 JSON 响应"""

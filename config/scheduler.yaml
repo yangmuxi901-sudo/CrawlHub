@@ -25,6 +25,43 @@ scheduler:
       cron: "0 3 * * *"
       misfire_grace_time: 3600
 
+    # 新闻爬取任务
+    news_cls:
+      enabled: true
+      cron: "*/10 9-16 * * 1-5"  # 交易日每 10 分钟
+      misfire_grace_time: 600
+
+    news_yicai:
+      enabled: true
+      cron: "*/15 9-17 * * 1-5"  # 交易日每 15 分钟
+      misfire_grace_time: 900
+
+    news_gov_stats:
+      enabled: true
+      cron: "0 10 * * 1-5"  # 工作日每日 10 点
+      misfire_grace_time: 3600
+
+    news_pbc:
+      enabled: true
+      cron: "0 11 * * 1-5"  # 工作日每日 11 点
+      misfire_grace_time: 3600
+
+    news_sohu:
+      enabled: false  # 可选，效率较低
+      cron: "0 15 * * 1-5"  # 工作日每日 15 点
+      misfire_grace_time: 3600
+
+    # 新增金融数据源
+    news_cnstock:
+      enabled: true
+      cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
+      misfire_grace_time: 3600
+
+    news_hkex:
+      enabled: true
+      cron: "*/30 9-18 * * 1-5"  # 交易日每 30 分钟
+      misfire_grace_time: 1800
+
   logging:
     max_bytes: 10485760
     backup_count: 5

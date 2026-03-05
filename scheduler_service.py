@@ -170,12 +170,82 @@ def run_ir_pdf():
     return {"PDF 纪要": total_downloaded}
 
 
+def run_news_cls():
+    """执行财联社新闻爬虫"""
+    from crawlers.news_cls import CLSTelegraphCrawler
+
+    crawler = CLSTelegraphCrawler()
+    count = crawler.crawl(pages=3)
+    return count
+
+
+def run_news_yicai():
+    """执行第一财经新闻爬虫"""
+    from crawlers.news_yicai import YiCaiNewsCrawler
+
+    crawler = YiCaiNewsCrawler()
+    count = crawler.crawl(pages=2)
+    return count
+
+
+def run_news_gov_stats():
+    """执行国家统计局新闻爬虫"""
+    from crawlers.news_gov_stats import GovStatsCrawler
+
+    crawler = GovStatsCrawler()
+    count = crawler.crawl(pages=3)
+    return count
+
+
+def run_news_pbc():
+    """执行中国人民银行新闻爬虫"""
+    from crawlers.news_pbc import PBOCCrawler
+
+    crawler = PBOCCrawler()
+    count = crawler.crawl()
+    return count
+
+
+def run_news_sohu():
+    """执行搜狐财经新闻爬虫"""
+    from crawlers.news_sohu import SohuFinanceCrawler
+
+    crawler = SohuFinanceCrawler()
+    count = crawler.crawl(pages=3)
+    return count
+
+
+def run_news_cnstock():
+    """执行上海证券报爬虫"""
+    from crawlers.news_cnstock import CNStockCrawler
+
+    crawler = CNStockCrawler()
+    count = crawler.crawl(pages=2)
+    return count
+
+
+def run_news_hkex():
+    """执行港交所新闻爬虫"""
+    from crawlers.news_hkex import HKEXNewsCrawler
+
+    crawler = HKEXNewsCrawler()
+    count = crawler.crawl()
+    return count
+
+
 # 任务注册表
 JOB_REGISTRY = {
     "chemical_price": run_chemical_price,
     "chemical_utilization": run_chemical_utilization,
     "ak_irm": run_ak_irm,
     "ir_pdf": run_ir_pdf,
+    "news_cls": run_news_cls,
+    "news_yicai": run_news_yicai,
+    "news_gov_stats": run_news_gov_stats,
+    "news_pbc": run_news_pbc,
+    "news_sohu": run_news_sohu,
+    "news_cnstock": run_news_cnstock,
+    "news_hkex": run_news_hkex,
 }
 
 
