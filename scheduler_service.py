@@ -233,6 +233,15 @@ def run_news_hkex():
     return count
 
 
+def run_cls_reference():
+    """执行财联社深度爬虫"""
+    from crawlers.cls_reference import CLSReferenceCrawler
+
+    crawler = CLSReferenceCrawler()
+    count = crawler.crawl()
+    return count
+
+
 # 任务注册表
 JOB_REGISTRY = {
     "chemical_price": run_chemical_price,
@@ -246,6 +255,7 @@ JOB_REGISTRY = {
     "news_sohu": run_news_sohu,
     "news_cnstock": run_news_cnstock,
     "news_hkex": run_news_hkex,
+    "cls_reference": run_cls_reference,
 }
 
 

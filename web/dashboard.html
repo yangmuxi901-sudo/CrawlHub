@@ -86,6 +86,7 @@
         .news-source.pbc { background: #96ceb4; color: white; }
         .news-source.sohu { background: #ffeaa7; color: #333; }
         .news-source.cnstock { background: #f5a623; color: white; }
+        .news-source.cls-depth { background: #9b59b6; color: white; }
 
         .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
@@ -328,6 +329,8 @@
                 '国家统计局': 'stats',
                 '中国人民银行': 'pbc',
                 '搜狐财经': 'sohu',
+                '上海证券报': 'cnstock',
+                '财联社深度': 'cls-depth',
             };
             return classes[source] || '';
         }
@@ -345,6 +348,7 @@
                 'news_sohu': '搜狐财经',
                 'news_cnstock': '上海证券报',
                 'news_hkex': '港交所新闻',
+                'cls_reference': '财联社深度',
             };
             return labels[name] || name;
         }

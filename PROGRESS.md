@@ -1,5 +1,105 @@
 # 项目进度日志
 
+## 2026-03-07 - 金融数据源集成完成
+
+### 实施进度
+
+**已完成：**
+1. ✅ 上海证券报爬虫 (`crawlers/news_cnstock.py`) - 基于 JustSimpleSpider 改造
+2. ✅ 港交所新闻爬虫 (`crawlers/news_hkex.py`) - 使用 Playwright 获取动态页面
+3. ✅ 财联社深度爬虫 (`crawlers/cls_reference.py`) - 支持早报、收评等栏目
+4. ✅ 数据库表扩展 (`finance_news.category` 字段)
+5. ✅ 交易所公告表 (`exchange_announcements`)
+6. ✅ API 端点 `/api/announcements` 支持筛选
+7. ✅ 前端交易所公告展示模块
+8. ✅ 调度服务集成（3 个新增任务）
+
+### 代码改造说明
+
+| 爬虫 | 原始文件 | 改造要点 |
+|------|---------|---------|
+| 上海证券报 | `ShangHaiSecuritiesNews/cn_hongguan.py` | MySQL → SQLite，继承 BaseCrawler |
+| 港交所新闻 | `CalendarNewsRelease/news_release.py` | MySQL → SQLite，增加 Playwright 动态渲染 |
+| 财联社深度 | 废弃代码 | 重新实现，复用 cls.cn API |
+
+### 调度配置
+
+```yaml
+news_cnstock:
+  enabled: true
+  cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
+
+news_hkex:
+  enabled: true
+  cron: "*/30 9-18 * * 1-5"  # 交易日每 30 分钟
+
+cls_reference:
+  enabled: true
+  cron: "0 8,17 * * 1-5"  # 工作日 8 点和 17 点
+```
+
+### 测试验收
+
+**上海证券报爬虫：**
+```
+[2026-03-06 23:57:31] 开始爬取上海证券报，共 12 个主题...
+[2026-03-06 23:57:51] 爬取完成，共新增 0 条新闻
+```
+→ 网站可能有反爬保护，数据已存在或其他原因
+
+**港交所新闻爬虫：**
+```
+[2026-03-06 23:57:54] 开始爬取港交所新闻...
+[2026-03-06 23:58:13] 爬取完成，获取 15 条，新增 0 条
+
+港交所公告总数：15 条
+按类别统计:
+  人事变动：4 条
+  其他：10 条
+  董事会会议：1 条
+```
+
+**财联社深度爬虫：**
+```
+[2026-03-07 00:03:30] 开始爬取财联社深度专题，计划爬取 3 页...
+[2026-03-07 00:04:08] 爬取完成，共新增 50 条新闻
+
+财联社深度总数：50 条
+按栏目统计:
+  收评：1 条
+  电报：49 条
+```
+
+### 前端增强
+
+- 新增"交易所公告"展示模块
+- 支持按交易所筛选（HKEX/SH/SZ）
+- 支持关键词搜索
+- 新增"财联社深度"来源样式
+
+### 数据库变更
+
+```sql
+-- 交易所公告表
+CREATE TABLE exchange_announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    exchange TEXT NOT NULL,
+    security_code TEXT,
+    security_name TEXT,
+    title TEXT NOT NULL,
+    pub_date TEXT NOT NULL,
+    category TEXT,
+    link TEXT UNIQUE NOT NULL,
+    content TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- finance_news 表扩展
+ALTER TABLE finance_news ADD COLUMN category TEXT;
+```
+
+---
+
 ## 2026-03-06 - 金融数据源集成
 
 ### 实施进度

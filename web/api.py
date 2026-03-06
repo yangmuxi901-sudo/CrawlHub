@@ -177,6 +177,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 "enabled": True,
                 "cron": "*/30 9-18 * * 1-5",
             },
+            "cls_reference": {
+                "label": "财联社深度",
+                "enabled": True,
+                "cron": "0 8,17 * * 1-5",
+            },
         }
 
     def get_news_stats(self):
