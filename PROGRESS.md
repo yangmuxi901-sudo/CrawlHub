@@ -8,11 +8,12 @@
 1. ✅ 上海证券报爬虫 (`crawlers/news_cnstock.py`) - 基于 JustSimpleSpider 改造
 2. ✅ 港交所新闻爬虫 (`crawlers/news_hkex.py`) - 使用 Playwright 获取动态页面
 3. ✅ 财联社深度爬虫 (`crawlers/cls_reference.py`) - 支持早报、收评等栏目
-4. ✅ 数据库表扩展 (`finance_news.category` 字段)
-5. ✅ 交易所公告表 (`exchange_announcements`)
-6. ✅ API 端点 `/api/announcements` 支持筛选
-7. ✅ 前端交易所公告展示模块
-8. ✅ 调度服务集成（3 个新增任务）
+4. ✅ 证券时报快讯爬虫 (`crawlers/stcn_kuaixun.py`) - 快讯/公告/研报等
+5. ✅ 数据库表扩展 (`finance_news.category` 字段)
+6. ✅ 交易所公告表 (`exchange_announcements`)
+7. ✅ API 端点 `/api/announcements` 支持筛选
+8. ✅ 前端交易所公告展示模块
+9. ✅ 调度服务集成（5 个新增任务）
 
 ### 代码改造说明
 
@@ -21,6 +22,7 @@
 | 上海证券报 | `ShangHaiSecuritiesNews/cn_hongguan.py` | MySQL → SQLite，继承 BaseCrawler |
 | 港交所新闻 | `CalendarNewsRelease/news_release.py` | MySQL → SQLite，增加 Playwright 动态渲染 |
 | 财联社深度 | 废弃代码 | 重新实现，复用 cls.cn API |
+| 证券时报快讯 | `StockStcn/kuaixun.py` | MySQL → SQLite，简化解析逻辑 |
 
 ### 调度配置
 
@@ -36,6 +38,10 @@ news_hkex:
 cls_reference:
   enabled: true
   cron: "0 8,17 * * 1-5"  # 工作日 8 点和 17 点
+
+stcn_kuaixun:
+  enabled: true
+  cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
 ```
 
 ### 测试验收
@@ -70,12 +76,20 @@ cls_reference:
   电报：49 条
 ```
 
+**证券时报快讯爬虫：**
+```
+[2026-03-07 00:50:50] 开始爬取证券时报快讯，计划爬取 3 页...
+[2026-03-07 00:50:59] 爬取完成，共新增 60 条新闻
+
+证券时报总数：60 条
+```
+
 ### 前端增强
 
 - 新增"交易所公告"展示模块
 - 支持按交易所筛选（HKEX/SH/SZ）
 - 支持关键词搜索
-- 新增"财联社深度"来源样式
+- 新增"财联社深度"、"证券时报"来源样式
 
 ### 数据库变更
 
@@ -97,6 +111,22 @@ CREATE TABLE exchange_announcements (
 -- finance_news 表扩展
 ALTER TABLE finance_news ADD COLUMN category TEXT;
 ```
+
+### 现有数据保护
+
+**原有数据完整保留：**
+- `ak_irm_history`: 250 家公司互动平台数据
+- `download_history`: 389 条下载记录
+- `chemical_crawl_history`: 10 条化工爬取记录
+- `industry_metrics`: 150 条行业指标
+- `finance_news`: 971+ 条新闻（新增 4 个来源）
+
+**原有爬虫继续运行：**
+- 化工价格爬虫 (`akshare_chem_crawler.py`)
+- 化工开工率爬虫 (`oilchem_utilization.py`)
+- 景气度指数爬虫 (`prosperity_index_crawler.py`)
+- 互动平台下载器 (`standalone_ak_irm_downloader.py`)
+- IR 纪要 PDF 下载器 (`standalone_ir_downloader.py`)
 
 ---
 

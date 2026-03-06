@@ -182,6 +182,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 "enabled": True,
                 "cron": "0 8,17 * * 1-5",
             },
+            "stcn_kuaixun": {
+                "label": "证券时报快讯",
+                "enabled": True,
+                "cron": "0 9,15 * * 1-5",
+            },
         }
 
     def get_news_stats(self):

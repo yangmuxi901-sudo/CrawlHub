@@ -67,6 +67,11 @@ scheduler:
       cron: "0 8,17 * * 1-5"  # 工作日 8 点和 17 点
       misfire_grace_time: 3600
 
+    stcn_kuaixun:
+      enabled: true
+      cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
+      misfire_grace_time: 3600
+
   logging:
     max_bytes: 10485760
     backup_count: 5

@@ -238,7 +238,16 @@ def run_cls_reference():
     from crawlers.cls_reference import CLSReferenceCrawler
 
     crawler = CLSReferenceCrawler()
-    count = crawler.crawl()
+    count = crawler.crawl(pages=3)
+    return count
+
+
+def run_stcn_kuaixun():
+    """执行证券时报快讯爬虫"""
+    from crawlers.stcn_kuaixun import STCNKuaixunCrawler
+
+    crawler = STCNKuaixunCrawler()
+    count = crawler.crawl(pages=3)
     return count
 
 
@@ -256,6 +265,7 @@ JOB_REGISTRY = {
     "news_cnstock": run_news_cnstock,
     "news_hkex": run_news_hkex,
     "cls_reference": run_cls_reference,
+    "stcn_kuaixun": run_stcn_kuaixun,
 }
 
 
