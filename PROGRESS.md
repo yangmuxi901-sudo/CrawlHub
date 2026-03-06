@@ -9,11 +9,13 @@
 2. ✅ 港交所新闻爬虫 (`crawlers/news_hkex.py`) - 使用 Playwright 获取动态页面
 3. ✅ 财联社深度爬虫 (`crawlers/cls_reference.py`) - 支持早报、收评等栏目
 4. ✅ 证券时报快讯爬虫 (`crawlers/stcn_kuaixun.py`) - 快讯/公告/研报等
-5. ✅ 数据库表扩展 (`finance_news.category` 字段)
-6. ✅ 交易所公告表 (`exchange_announcements`)
-7. ✅ API 端点 `/api/announcements` 支持筛选
-8. ✅ 前端交易所公告展示模块
-9. ✅ 调度服务集成（5 个新增任务）
+5. ✅ 巨潮资讯公告爬虫 (`crawlers/cninfo_announcement.py`) - 待修复反爬
+6. ✅ 东方财富新闻爬虫 (`crawlers/eastmoney_news.py`) - 待修复反爬
+7. ✅ 数据库表扩展 (`finance_news.category` 字段)
+8. ✅ 交易所公告表 (`exchange_announcements`)
+9. ✅ API 端点 `/api/announcements` 支持筛选
+10. ✅ 前端交易所公告展示模块
+11. ✅ 调度服务集成（10 个新增任务）
 
 ### 代码改造说明
 
@@ -23,73 +25,74 @@
 | 港交所新闻 | `CalendarNewsRelease/news_release.py` | MySQL → SQLite，增加 Playwright 动态渲染 |
 | 财联社深度 | 废弃代码 | 重新实现，复用 cls.cn API |
 | 证券时报快讯 | `StockStcn/kuaixun.py` | MySQL → SQLite，简化解析逻辑 |
+| 巨潮资讯公告 | `JuchaoInfo/juchao.py` | MySQL → SQLite，更新 API 调用 |
+| 东方财富新闻 | 新实现 | 基于东方财富 API |
 
 ### 调度配置
 
 ```yaml
-news_cnstock:
-  enabled: true
-  cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
+# 新闻爬取任务（10 个）
+news_cls:            # 财联社电报
+  cron: "*/10 9-16 * * 1-5"
 
-news_hkex:
-  enabled: true
-  cron: "*/30 9-18 * * 1-5"  # 交易日每 30 分钟
+news_yicai:          # 第一财经
+  cron: "*/15 9-17 * * 1-5"
 
-cls_reference:
-  enabled: true
-  cron: "0 8,17 * * 1-5"  # 工作日 8 点和 17 点
+news_gov_stats:      # 国家统计局
+  cron: "0 10 * * 1-5"
 
-stcn_kuaixun:
-  enabled: true
-  cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
+news_pbc:            # 中国人民银行
+  cron: "0 11 * * 1-5"
+
+news_sohu:           # 搜狐财经
+  cron: "0 15 * * 1-5"
+
+news_cnstock:        # 上海证券报
+  cron: "0 9,15 * * 1-5"
+
+news_hkex:           # 港交所新闻
+  cron: "*/30 9-18 * * 1-5"
+
+cls_reference:       # 财联社深度
+  cron: "0 8,17 * * 1-5"
+
+stcn_kuaixun:        # 证券时报快讯
+  cron: "0 9,15 * * 1-5"
+
+cninfo_announcement: # 巨潮资讯公告（待修复）
+  cron: "0 10,16 * * 1-5"
+
+eastmoney_news:      # 东方财富新闻（待修复）
+  cron: "0 9,12,17 * * 1-5"
 ```
 
 ### 测试验收
 
-**上海证券报爬虫：**
-```
-[2026-03-06 23:57:31] 开始爬取上海证券报，共 12 个主题...
-[2026-03-06 23:57:51] 爬取完成，共新增 0 条新闻
-```
-→ 网站可能有反爬保护，数据已存在或其他原因
+**已正常运行的爬虫：**
 
-**港交所新闻爬虫：**
-```
-[2026-03-06 23:57:54] 开始爬取港交所新闻...
-[2026-03-06 23:58:13] 爬取完成，获取 15 条，新增 0 条
+| 爬虫 | 新闻数 | 状态 |
+|------|--------|------|
+| 财联社 | 473 | ✅ 正常 |
+| 第一财经 | 357 | ✅ 正常 |
+| 国家统计局 | 71 | ✅ 正常 |
+| 中国人民银行 | 15 | ✅ 正常 |
+| 证券时报 | 60 | ✅ 正常 |
+| 财联社深度 | 50 | ✅ 正常 |
+| 上海证券报 | - | ⚠️ 反爬 |
+| 港交所新闻 | 15 | ✅ 正常 |
+| 巨潮资讯 | - | ⚠️ 451 错误 |
+| 东方财富 | - | ⚠️ 超时 |
 
-港交所公告总数：15 条
-按类别统计:
-  人事变动：4 条
-  其他：10 条
-  董事会会议：1 条
-```
-
-**财联社深度爬虫：**
-```
-[2026-03-07 00:03:30] 开始爬取财联社深度专题，计划爬取 3 页...
-[2026-03-07 00:04:08] 爬取完成，共新增 50 条新闻
-
-财联社深度总数：50 条
-按栏目统计:
-  收评：1 条
-  电报：49 条
-```
-
-**证券时报快讯爬虫：**
-```
-[2026-03-07 00:50:50] 开始爬取证券时报快讯，计划爬取 3 页...
-[2026-03-07 00:50:59] 爬取完成，共新增 60 条新闻
-
-证券时报总数：60 条
-```
+**待修复问题：**
+- 巨潮资讯：API 返回 451 错误，需要更新 mcode 签名算法
+- 东方财富：请求超时，需要增加重试机制和延迟
 
 ### 前端增强
 
 - 新增"交易所公告"展示模块
 - 支持按交易所筛选（HKEX/SH/SZ）
 - 支持关键词搜索
-- 新增"财联社深度"、"证券时报"来源样式
+- 新增多个新闻来源样式
 
 ### 数据库变更
 
@@ -115,18 +118,19 @@ ALTER TABLE finance_news ADD COLUMN category TEXT;
 ### 现有数据保护
 
 **原有数据完整保留：**
-- `ak_irm_history`: 250 家公司互动平台数据
+- `ak_irm_history`: 250 家公司互动平台元数据
 - `download_history`: 389 条下载记录
 - `chemical_crawl_history`: 10 条化工爬取记录
 - `industry_metrics`: 150 条行业指标
-- `finance_news`: 971+ 条新闻（新增 4 个来源）
+- `finance_news`: 1000+ 条新闻（10 个来源）
+- `exchange_announcements`: 15+ 条交易所公告
 
 **原有爬虫继续运行：**
 - 化工价格爬虫 (`akshare_chem_crawler.py`)
 - 化工开工率爬虫 (`oilchem_utilization.py`)
 - 景气度指数爬虫 (`prosperity_index_crawler.py`)
-- 互动平台下载器 (`standalone_ak_irm_downloader.py`)
-- IR 纪要 PDF 下载器 (`standalone_ir_downloader.py`)
+- 互动平台问答下载器 (`standalone_ak_irm_downloader.py`) - 9,316 条问答
+- IR 纪要 PDF 下载器 (`standalone_ir_downloader.py`) - 10,262 份 PDF
 
 ---
 
