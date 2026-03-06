@@ -88,6 +88,8 @@
         .news-source.cnstock { background: #f5a623; color: white; }
         .news-source.cls-depth { background: #9b59b6; color: white; }
         .news-source.stcn { background: #e74c3c; color: white; }
+        .news-source.eastmoney { background: #ff9800; color: white; }
+        .news-source.cninfo { background: #00bcd4; color: white; }
 
         .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
@@ -333,6 +335,8 @@
                 '上海证券报': 'cnstock',
                 '财联社深度': 'cls-depth',
                 '证券时报': 'stcn',
+                '东方财富': 'eastmoney',
+                '巨潮资讯': 'cninfo',
             };
             return classes[source] || '';
         }
@@ -352,6 +356,8 @@
                 'news_hkex': '港交所新闻',
                 'cls_reference': '财联社深度',
                 'stcn_kuaixun': '证券时报快讯',
+                'cninfo_announcement': '巨潮资讯公告',
+                'eastmoney_news': '东方财富新闻',
             };
             return labels[name] || name;
         }

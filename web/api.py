@@ -187,6 +187,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 "enabled": True,
                 "cron": "0 9,15 * * 1-5",
             },
+            "cninfo_announcement": {
+                "label": "巨潮资讯公告",
+                "enabled": True,
+                "cron": "0 10,16 * * 1-5",
+            },
+            "eastmoney_news": {
+                "label": "东方财富新闻",
+                "enabled": True,
+                "cron": "0 9,12,17 * * 1-5",
+            },
         }
 
     def get_news_stats(self):

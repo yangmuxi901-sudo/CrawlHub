@@ -72,6 +72,16 @@ scheduler:
       cron: "0 9,15 * * 1-5"  # 工作日 9 点和 15 点
       misfire_grace_time: 3600
 
+    cninfo_announcement:
+      enabled: false  # 待修复：API 返回 451 错误
+      cron: "0 10,16 * * 1-5"  # 工作日 10 点和 16 点
+      misfire_grace_time: 3600
+
+    eastmoney_news:
+      enabled: false  # 待修复：请求超时
+      cron: "0 9,12,17 * * 1-5"  # 工作日 9 点、12 点和 17 点
+      misfire_grace_time: 3600
+
   logging:
     max_bytes: 10485760
     backup_count: 5

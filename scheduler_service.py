@@ -251,6 +251,24 @@ def run_stcn_kuaixun():
     return count
 
 
+def run_cninfo_announcement():
+    """执行巨潮资讯公告爬虫"""
+    from crawlers.cninfo_announcement import CNInfoAnnouncementCrawler
+
+    crawler = CNInfoAnnouncementCrawler()
+    count = crawler.crawl()
+    return count
+
+
+def run_eastmoney_news():
+    """执行东方财富新闻爬虫"""
+    from crawlers.eastmoney_news import EastMoneyNewsCrawler
+
+    crawler = EastMoneyNewsCrawler()
+    count = crawler.crawl(pages=3)
+    return count
+
+
 # 任务注册表
 JOB_REGISTRY = {
     "chemical_price": run_chemical_price,
@@ -266,6 +284,8 @@ JOB_REGISTRY = {
     "news_hkex": run_news_hkex,
     "cls_reference": run_cls_reference,
     "stcn_kuaixun": run_stcn_kuaixun,
+    "cninfo_announcement": run_cninfo_announcement,
+    "eastmoney_news": run_eastmoney_news,
 }
 
 
