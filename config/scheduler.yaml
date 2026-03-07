@@ -93,6 +93,19 @@ scheduler:
       cron: "*/30 9-17 * * 1-5"  # 交易日每 30 分钟
       misfire_grace_time: 1800
 
+    # =============================
+    # 启用模板（交易时段，复制后直接改 enabled）
+    # news_juhe_domestic:
+    #   enabled: true
+    #   cron: "*/20 9-17 * * 1-5"
+    #   misfire_grace_time: 1200
+    #
+    # news_tianapi_domestic:
+    #   enabled: true
+    #   cron: "*/30 9-17 * * 1-5"
+    #   misfire_grace_time: 1800
+    # =============================
+
   logging:
     max_bytes: 10485760
     backup_count: 5
