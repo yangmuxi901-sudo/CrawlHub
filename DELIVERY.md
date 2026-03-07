@@ -1,8 +1,9 @@
 # 金融数据源集成 - 最终交付包
 
-**版本：** v1.1
+**版本：** v1.2
 **交付日期：** 2026-03-07
 **交付状态：** ✅ P0 全部通过
+**最新更新：** 新批次 `20260307_100619` 已生成
 
 ---
 
@@ -12,10 +13,23 @@
 
 | 文件 | 路径 | 大小 | 说明 |
 |------|------|------|------|
-| 批次 ID | `exports/20260307_010000/` | - | 时间戳格式批次名 |
-| 事件数据 | `exports/20260307_010000/events.jsonl` | 987,847 bytes | 1000 条 JSONL 格式事件 |
-| 清单文件 | `exports/20260307_010000/manifest.json` | 2,210 bytes | 含 checksum 和 watermark |
-| 成功标志 | `exports/20260307_010000/_SUCCESS` | 53 bytes | 导出完成时间戳 |
+| 批次 ID | `exports/20260307_100619/` | - | 时间戳格式批次名 |
+| 事件数据 | `exports/20260307_100619/events.jsonl` | ~987 KB | 1000 条 JSONL 格式事件 |
+| 清单文件 | `exports/20260307_100619/manifest.json` | 2,210 bytes | 含 checksum 和 watermark |
+| 成功标志 | `exports/20260307_100619/_SUCCESS` | 53 bytes | 导出完成时间戳 |
+
+**上一批次：** `exports/20260307_010000/` (保留参考)
+
+**批次验证：**
+```bash
+# 验证记录数
+wc -l exports/20260307_100619/events.jsonl
+# 输出：1000
+
+# 验证 checksum
+sha256sum exports/20260307_100619/events.jsonl
+# 应与 manifest.json 中 checksum 一致
+```
 
 **批次验证：**
 ```bash
@@ -44,15 +58,16 @@ sha256sum exports/20260307_010000/events.jsonl
 | 生产位点 | `data/watermarks/producer_watermark.json` | 8 个数据源进度 |
 | 消费位点目录 | `data/watermarks/consumers/` | 多消费者独立位点 |
 
-**当前 Watermark 状态（8 个数据源）：**
+**当前 Watermark 状态（9 个数据源）：**
 ```json
 {
+  "央视新闻客户端": {"last_published_at": "2026-03-07T08:42:18+00:00"},
   "财联社深度": {"last_published_at": "2026-03-06T22:07:29+00:00"},
   "第一财经": {"last_published_at": "2026-03-04T16:15:45+00:00"},
   "财联社": {"last_published_at": "2026-03-04T18:29:52+00:00"},
   "央视新闻": {"last_published_at": "2026-03-06T09:05:01+00:00"},
   "搜狐财经": {"last_published_at": "2026-03-04T22:39:29+00:00"},
-  "国家统计局": {"last_published_at": "2025-11-14T00:00:00+00:00"},
+  "国家统计局": {"last_published_at": "2026-03-03T00:00:00+00:00"},
   "中国人民银行": {"last_published_at": "2026-02-13T00:00:00+00:00"},
   "证券时报": {"last_published_at": "2022-09-30T00:00:00+00:00"}
 }
@@ -143,10 +158,11 @@ rm data/watermarks/consumers/consumer_a.json
 
 ## 三、数据源状态汇总
 
-### 3.1 正常运行（8 个）
+### 3.1 正常运行（9 个）
 
 | 数据源 | 记录数 | 最新数据 | 调度状态 |
 |--------|--------|----------|----------|
+| 央视新闻客户端 | 新增 | 2026-03-07 08:42 | ✅ 正常 |
 | 财联社 | 473 | 2026-03-06 16:49 | ✅ 正常 |
 | 第一财经 | 357 | 2026-03-06 17:43 | ✅ 正常 |
 | 国家统计局 | 71 | 2026-03-04 | ✅ 正常 |
@@ -171,15 +187,15 @@ rm data/watermarks/consumers/consumer_a.json
 ### 4.1 验证导出批次
 ```bash
 # 检查批次文件完整性
-ls -la exports/20260307_010000/
+ls -la exports/20260307_100619/
 # 应包含：events.jsonl, manifest.json, _SUCCESS
 
 # 验证记录数
-wc -l exports/20260307_010000/events.jsonl
+wc -l exports/20260307_100619/events.jsonl
 # 输出：1000
 
 # 验证 checksum 匹配
-sha256sum exports/20260307_010000/events.jsonl
+sha256sum exports/20260307_100619/events.jsonl
 # 与 manifest.json 中 checksum 字段对比
 ```
 
@@ -214,7 +230,7 @@ tail -f data/scheduler.log
 | P0-1 | 批次协议验收 | ✅ PASS | events.jsonl + manifest.json + _SUCCESS |
 | P0-2 | Schema 与字段质量 | ✅ PASS | 必填字段完整率 100% |
 | P0-3 | 幂等性验收 | ✅ PASS | event_id 基于内容哈希，一致 |
-| P0-4 | Watermark 验收 | ✅ PASS | 8 个 source 独立推进 |
+| P0-4 | Watermark 验收 | ✅ PASS | 9 个 source 独立推进 |
 | P0-5 | 完整性与校验 | ✅ PASS | record_count=1000, checksum 匹配 |
 | P0-6 | 可追溯性验收 | ✅ PASS | 可回溯率 100% |
 
