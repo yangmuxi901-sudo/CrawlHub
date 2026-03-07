@@ -23,12 +23,7 @@ def test_fetch_tianapi_without_key_returns_empty(monkeypatch):
 
 def test_save_news_inserts_unique_links(tmp_path, monkeypatch):
     db_path = tmp_path / "news_test.db"
-    real_connect = sqlite3.connect
-
-    def _connect(_ignored):
-        return real_connect(db_path)
-
-    monkeypatch.setattr(agg.sqlite3, "connect", _connect)
+    monkeypatch.setattr(agg, "DB_PATH", str(db_path))
     crawler = DomesticAggregatorCrawler()
     crawler.init_db()
 
@@ -52,7 +47,7 @@ def test_save_news_inserts_unique_links(tmp_path, monkeypatch):
     inserted = crawler.save_news(sample)
     assert inserted == 1
 
-    conn = real_connect(db_path)
+    conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM finance_news")
     count = cur.fetchone()[0]

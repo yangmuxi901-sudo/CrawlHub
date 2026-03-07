@@ -15,13 +15,12 @@
 """
 
 import os
-import sqlite3
-from datetime import datetime
 from typing import Dict, List
 
 import requests
 
 from crawlers.base import BaseCrawler, DB_PATH
+from crawlers.news_arch import FinanceNewsStore, NewsIngestionPipeline, normalize_news_item
 
 
 class DomesticAggregatorCrawler(BaseCrawler):
@@ -41,38 +40,13 @@ class DomesticAggregatorCrawler(BaseCrawler):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "application/json,text/plain,*/*",
         }
+        self.store = FinanceNewsStore(DB_PATH)
+        self.pipeline = NewsIngestionPipeline(self.store)
 
     def init_db(self):
         """初始化统一新闻表"""
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS finance_news (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                source TEXT,
-                pub_date TEXT,
-                link TEXT,
-                article TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(link)
-            )
-            """
-        )
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_news_pub_date ON finance_news(pub_date)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_news_source ON finance_news(source)")
-        conn.commit()
-        conn.close()
+        self.store.init_schema()
         self.logger.log("数据库表初始化完成")
-
-    @staticmethod
-    def _safe_time(text: str | None) -> str:
-        if not text:
-            return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        text = str(text).strip()
-        # 兼容 2026-03-07T10:00:00+08:00 / 2026-03-07 10:00:00
-        text = text.replace("T", " ").replace("Z", "")
-        return text[:19]
 
     def _fetch_juhe(self, page: int = 1, page_size: int = 30) -> List[Dict]:
         if not self.juhe_key:
@@ -104,9 +78,10 @@ class DomesticAggregatorCrawler(BaseCrawler):
                     {
                         "title": title[:100],
                         "source": "聚合-Juhe",
-                        "pub_date": self._safe_time(item.get("date")),
+                        "pub_date": item.get("date"),
                         "link": link,
                         "article": str(item.get("author_name", "")).strip(),
+                        "category": "财经",
                     }
                 )
             return out
@@ -145,9 +120,10 @@ class DomesticAggregatorCrawler(BaseCrawler):
                     {
                         "title": title[:100],
                         "source": "聚合-TianAPI",
-                        "pub_date": self._safe_time(item.get("ctime") or item.get("pubDate")),
+                        "pub_date": item.get("ctime") or item.get("pubDate"),
                         "link": link,
                         "article": content[:10000],
+                        "category": "财经",
                     }
                 )
             return out
@@ -159,34 +135,17 @@ class DomesticAggregatorCrawler(BaseCrawler):
         """保存新闻到数据库"""
         if not news_list:
             return 0
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        inserted = 0
-
-        for news in news_list:
-            try:
-                cursor.execute(
-                    """
-                    INSERT OR IGNORE INTO finance_news
-                    (title, source, pub_date, link, article)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        news["title"],
-                        news["source"],
-                        news["pub_date"],
-                        news["link"],
-                        news.get("article", ""),
-                    ),
-                )
-                if cursor.rowcount > 0:
-                    inserted += 1
-            except Exception as exc:
-                self.logger.log(f"插入失败：{exc}", "DEBUG")
-
-        conn.commit()
-        conn.close()
+        _, inserted = self.pipeline.ingest(
+            news_list,
+            lambda n: normalize_news_item(
+                source=n.get("source", "unknown"),
+                title=n.get("title", ""),
+                link=n.get("link", ""),
+                pub_date=n.get("pub_date"),
+                article=n.get("article", ""),
+                category=n.get("category", "财经"),
+            ),
+        )
         return inserted
 
     def crawl(self, provider: str = "all", pages: int = 1, page_size: int = 30) -> int:
