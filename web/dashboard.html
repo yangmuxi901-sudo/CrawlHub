@@ -50,6 +50,11 @@
         .status { padding: 4px 12px; border-radius: 12px; font-size: 12px; }
         .status.success { background: #d4edda; color: #155724; }
         .status.failed { background: #f8d7da; color: #721c24; }
+        .status.healthy { background: #d4edda; color: #155724; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.critical { background: #f8d7da; color: #721c24; }
+        .status.disabled { background: #e2e3e5; color: #383d41; }
+        .status.no_data { background: #d1ecf1; color: #0c5460; }
 
         .job-item {
             display: flex;
@@ -149,6 +154,29 @@
             </table>
         </div>
 
+        <!-- 数据源健康度 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>🩺 数据源健康度（近 7 天）</h2>
+                <button class="refresh-btn" onclick="loadSourceHealth()">🔄 刷新</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>任务</th>
+                        <th>健康状态</th>
+                        <th>成功率</th>
+                        <th>空数据率</th>
+                        <th>执行(成功/失败)</th>
+                        <th>平均记录数</th>
+                        <th>最近执行</th>
+                        <th>最近错误</th>
+                    </tr>
+                </thead>
+                <tbody id="sourceHealthTable"></tbody>
+            </table>
+        </div>
+
         <!-- 新闻数据概览 -->
         <div class="card">
             <h2>📰 新闻数据概览</h2>
@@ -194,6 +222,7 @@
             await loadStats();
             await loadJobs();
             await loadLogs();
+            await loadSourceHealth();
             await loadNewsStats();
             await loadAnnouncements();
         }
@@ -253,6 +282,30 @@
                 document.getElementById('logTable').innerHTML = html;
             } catch (e) {
                 console.error('加载日志失败:', e);
+            }
+        }
+
+        // 加载数据源健康度
+        async function loadSourceHealth() {
+            try {
+                const res = await fetch(`${API_BASE}/source-health?days=7`);
+                const payload = await res.json();
+                const rows = payload.items || [];
+                const html = rows.map(item => `
+                    <tr>
+                        <td>${item.label} (${item.job_name})</td>
+                        <td><span class="status ${item.health_status}">${formatHealth(item.health_status)}</span></td>
+                        <td>${item.success_rate}%</td>
+                        <td>${item.empty_rate}%</td>
+                        <td>${item.total_runs} (${item.success_runs}/${item.failed_runs})</td>
+                        <td>${item.avg_records}</td>
+                        <td>${item.last_run || '-'}</td>
+                        <td class="log-detail" title="${item.last_error || ''}">${item.last_error || '-'}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('sourceHealthTable').innerHTML = html || '<tr><td colspan="8">暂无数据</td></tr>';
+            } catch (e) {
+                console.error('加载数据源健康度失败:', e);
             }
         }
 
@@ -360,6 +413,17 @@
                 'eastmoney_news': '东方财富新闻',
             };
             return labels[name] || name;
+        }
+
+        function formatHealth(status) {
+            const labels = {
+                healthy: '✅ 健康',
+                warning: '⚠️ 预警',
+                critical: '❌ 异常',
+                disabled: '⏸️ 已禁用',
+                no_data: 'ℹ️ 无数据',
+            };
+            return labels[status] || status;
         }
 
         // 初始加载

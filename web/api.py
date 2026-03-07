@@ -9,6 +9,7 @@ import os
 import sys
 import sqlite3
 import json
+import yaml
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -17,6 +18,157 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "sync_record.db")
 WEB_DIR = os.path.join(BASE_DIR, "web")
+DEFAULT_CONFIG_PATH = os.path.join(BASE_DIR, "config", "scheduler.yaml")
+
+JOB_LABELS = {
+    "chemical_price": "化工价格",
+    "chemical_utilization": "化工开工率",
+    "ak_irm": "互动平台问答",
+    "ir_pdf": "IR 纪要 PDF",
+    "news_cls": "财联社电报",
+    "news_yicai": "第一财经",
+    "news_gov_stats": "国家统计局",
+    "news_pbc": "中国人民银行",
+    "news_sohu": "搜狐财经",
+    "news_cnstock": "上海证券报",
+    "news_hkex": "港交所新闻",
+    "cls_reference": "财联社深度",
+    "stcn_kuaixun": "证券时报快讯",
+    "cninfo_announcement": "巨潮资讯公告",
+    "eastmoney_news": "东方财富新闻",
+    "news_juhe_domestic": "聚合新闻(Juhe)",
+    "news_tianapi_domestic": "聚合新闻(TianAPI)",
+}
+
+
+def load_scheduler_jobs(config_path=DEFAULT_CONFIG_PATH):
+    """读取调度配置中的 jobs"""
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return (data.get("scheduler") or {}).get("jobs") or {}
+    except Exception:
+        return {}
+
+
+def get_source_health_summary(db_path=DB_PATH, config_path=DEFAULT_CONFIG_PATH, days=7):
+    """汇总各任务源健康度"""
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        days = 7
+    if days <= 0:
+        days = 7
+
+    configured_jobs = load_scheduler_jobs(config_path)
+    stats_by_job = {}
+    latest_by_job = {}
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT
+                job_name,
+                COUNT(*) AS total_runs,
+                SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success_runs,
+                SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed_runs,
+                SUM(CASE WHEN status='success' AND COALESCE(records_count, 0)=0 THEN 1 ELSE 0 END) AS empty_runs,
+                COALESCE(SUM(records_count), 0) AS total_records,
+                MAX(start_time) AS last_run
+            FROM scheduler_run_log
+            WHERE datetime(start_time) >= datetime('now', ?)
+            GROUP BY job_name
+            """,
+            (f"-{days} days",),
+        )
+        for row in cursor.fetchall():
+            stats_by_job[row[0]] = {
+                "total_runs": int(row[1] or 0),
+                "success_runs": int(row[2] or 0),
+                "failed_runs": int(row[3] or 0),
+                "empty_runs": int(row[4] or 0),
+                "total_records": int(row[5] or 0),
+                "last_run": row[6] or "",
+            }
+
+        cursor.execute(
+            """
+            SELECT l.job_name, l.status, l.error_msg
+            FROM scheduler_run_log l
+            JOIN (
+                SELECT job_name, MAX(id) AS max_id
+                FROM scheduler_run_log
+                GROUP BY job_name
+            ) t
+            ON l.job_name = t.job_name AND l.id = t.max_id
+            """
+        )
+        for row in cursor.fetchall():
+            latest_by_job[row[0]] = {
+                "last_status": row[1] or "",
+                "last_error": row[2] or "",
+            }
+    except sqlite3.OperationalError:
+        # 兼容首次运行：日志表可能尚未创建
+        pass
+    finally:
+        conn.close()
+
+    job_names = sorted(set(configured_jobs.keys()) | set(stats_by_job.keys()))
+    rows = []
+    for job_name in job_names:
+        cfg = configured_jobs.get(job_name, {})
+        stat = stats_by_job.get(job_name, {})
+        latest = latest_by_job.get(job_name, {})
+
+        total_runs = int(stat.get("total_runs", 0))
+        success_runs = int(stat.get("success_runs", 0))
+        failed_runs = int(stat.get("failed_runs", 0))
+        empty_runs = int(stat.get("empty_runs", 0))
+        total_records = int(stat.get("total_records", 0))
+        success_rate = round((success_runs / total_runs * 100), 1) if total_runs else 0.0
+        empty_rate = round((empty_runs / max(success_runs, 1) * 100), 1) if success_runs else 0.0
+        avg_records = round((total_records / total_runs), 1) if total_runs else 0.0
+        enabled = bool(cfg.get("enabled", False))
+        last_status = latest.get("last_status", "")
+
+        if not enabled:
+            health_status = "disabled"
+        elif total_runs == 0:
+            health_status = "no_data"
+        elif success_rate >= 80 and last_status != "failed" and empty_rate < 60:
+            health_status = "healthy"
+        elif success_rate >= 50:
+            health_status = "warning"
+        else:
+            health_status = "critical"
+
+        rows.append(
+            {
+                "job_name": job_name,
+                "label": JOB_LABELS.get(job_name, job_name),
+                "enabled": enabled,
+                "cron": cfg.get("cron", ""),
+                "total_runs": total_runs,
+                "success_runs": success_runs,
+                "failed_runs": failed_runs,
+                "empty_runs": empty_runs,
+                "success_rate": success_rate,
+                "empty_rate": empty_rate,
+                "total_records": total_records,
+                "avg_records": avg_records,
+                "last_run": stat.get("last_run", ""),
+                "last_status": last_status,
+                "last_error": latest.get("last_error", ""),
+                "health_status": health_status,
+            }
+        )
+
+    return rows
 
 
 class DashboardHandler(SimpleHTTPRequestHandler):
@@ -42,6 +194,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             exchange = query.get('exchange', [None])[0]
             limit = int(query.get('limit', [50])[0])
             self.send_json(self.get_announcements(exchange, limit))
+        elif path == '/api/source-health':
+            days = int(query.get('days', [7])[0])
+            self.send_json({"days": days, "items": self.get_source_health(days)})
         elif path == '/':
             self.serve_file(os.path.join(WEB_DIR, 'dashboard.html'))
         else:
@@ -117,97 +272,15 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
     def get_jobs(self):
         """获取任务配置"""
-        return {
-            # 爬虫任务
-            "chemical_price": {
-                "label": "化工价格",
-                "enabled": True,
-                "cron": "30 9,18 * * 1-5",
-            },
-            "chemical_utilization": {
-                "label": "化工开工率",
-                "enabled": True,
-                "cron": "30 18 * * 1-5",
-            },
-            # 互动平台任务
-            "ak_irm": {
-                "label": "互动平台问答",
-                "enabled": True,
-                "cron": "0 2 * * *",
-            },
-            "ir_pdf": {
-                "label": "IR 纪要 PDF",
-                "enabled": True,
-                "cron": "0 3 * * *",
-            },
-            # 新闻爬取任务
-            "news_cls": {
-                "label": "财联社电报",
-                "enabled": True,
-                "cron": "*/10 9-16 * * 1-5",
-            },
-            "news_yicai": {
-                "label": "第一财经",
-                "enabled": True,
-                "cron": "*/15 9-17 * * 1-5",
-            },
-            "news_gov_stats": {
-                "label": "国家统计局",
-                "enabled": True,
-                "cron": "0 10 * * 1-5",
-            },
-            "news_pbc": {
-                "label": "中国人民银行",
-                "enabled": True,
-                "cron": "0 11 * * 1-5",
-            },
-            "news_sohu": {
-                "label": "搜狐财经",
-                "enabled": False,
-                "cron": "0 15 * * 1-5",
-            },
-            # 新增金融数据源
-            "news_cnstock": {
-                "label": "上海证券报",
-                "enabled": True,
-                "cron": "0 9,15 * * 1-5",
-            },
-            "news_hkex": {
-                "label": "港交所新闻",
-                "enabled": True,
-                "cron": "*/30 9-18 * * 1-5",
-            },
-            "cls_reference": {
-                "label": "财联社深度",
-                "enabled": True,
-                "cron": "0 8,17 * * 1-5",
-            },
-            "stcn_kuaixun": {
-                "label": "证券时报快讯",
-                "enabled": True,
-                "cron": "0 9,15 * * 1-5",
-            },
-            "cninfo_announcement": {
-                "label": "巨潮资讯公告",
-                "enabled": True,
-                "cron": "0 10,16 * * 1-5",
-            },
-            "eastmoney_news": {
-                "label": "东方财富新闻",
-                "enabled": True,
-                "cron": "0 9,12,17 * * 1-5",
-            },
-            "news_juhe_domestic": {
-                "label": "聚合新闻(Juhe)",
-                "enabled": False,
-                "cron": "*/20 9-17 * * 1-5",
-            },
-            "news_tianapi_domestic": {
-                "label": "聚合新闻(TianAPI)",
-                "enabled": False,
-                "cron": "*/30 9-17 * * 1-5",
-            },
-        }
+        jobs_cfg = load_scheduler_jobs()
+        jobs = {}
+        for job_name, cfg in jobs_cfg.items():
+            jobs[job_name] = {
+                "label": JOB_LABELS.get(job_name, job_name),
+                "enabled": bool(cfg.get("enabled", False)),
+                "cron": cfg.get("cron", ""),
+            }
+        return jobs
 
     def get_news_stats(self):
         """获取新闻统计数据"""
@@ -269,6 +342,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             }
             for row in rows
         ]
+
+    def get_source_health(self, days=7):
+        """获取数据源健康度"""
+        return get_source_health_summary(DB_PATH, DEFAULT_CONFIG_PATH, days)
 
     def send_json(self, data):
         """发送 JSON 响应"""
