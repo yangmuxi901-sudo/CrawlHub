@@ -58,3 +58,63 @@ def test_save_news_inserts_unique_links(tmp_path, monkeypatch):
     count = cur.fetchone()[0]
     conn.close()
     assert count == 1
+
+
+def test_fetch_juhe_maps_payload(monkeypatch):
+    monkeypatch.setenv("JUHE_API_KEY", "demo_key")
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "result": {
+                    "data": [
+                        {
+                            "title": "测试新闻A",
+                            "url": "https://example.com/a",
+                            "date": "2026-03-07 11:00:00",
+                            "author_name": "作者A",
+                        }
+                    ]
+                }
+            }
+
+    monkeypatch.setattr(agg.requests, "get", lambda *args, **kwargs: _Resp())
+    crawler = DomesticAggregatorCrawler()
+    rows = crawler._fetch_juhe(page=1, page_size=10)
+    assert len(rows) == 1
+    assert rows[0]["source"] == "聚合-Juhe"
+    assert rows[0]["title"] == "测试新闻A"
+    assert rows[0]["link"] == "https://example.com/a"
+
+
+def test_fetch_tianapi_maps_payload(monkeypatch):
+    monkeypatch.setenv("TIANAPI_API_KEY", "demo_key")
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "result": {
+                    "newslist": [
+                        {
+                            "title": "测试新闻B",
+                            "url": "https://example.com/b",
+                            "ctime": "2026-03-07 11:01:00",
+                            "description": "摘要B",
+                        }
+                    ]
+                }
+            }
+
+    monkeypatch.setattr(agg.requests, "get", lambda *args, **kwargs: _Resp())
+    crawler = DomesticAggregatorCrawler()
+    rows = crawler._fetch_tianapi(num=10)
+    assert len(rows) == 1
+    assert rows[0]["source"] == "聚合-TianAPI"
+    assert rows[0]["title"] == "测试新闻B"
+    assert rows[0]["article"] == "摘要B"
