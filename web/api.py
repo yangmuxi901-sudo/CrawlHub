@@ -197,6 +197,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 "enabled": True,
                 "cron": "0 9,12,17 * * 1-5",
             },
+            "news_juhe_domestic": {
+                "label": "聚合新闻(Juhe)",
+                "enabled": False,
+                "cron": "*/20 9-17 * * 1-5",
+            },
+            "news_tianapi_domestic": {
+                "label": "聚合新闻(TianAPI)",
+                "enabled": False,
+                "cron": "*/30 9-17 * * 1-5",
+            },
         }
 
     def get_news_stats(self):
