@@ -96,6 +96,28 @@ def log_run(job_name, start_time, end_time, status, error_msg="", records_count=
     conn.close()
 
 
+def normalize_records_count(result, job_name, logger):
+    """统一任务返回值为可落库的记录数（int）"""
+    if result is None:
+        return 0
+
+    if isinstance(result, bool):
+        return int(result)
+
+    if isinstance(result, (int, float)):
+        return max(0, int(result))
+
+    if isinstance(result, dict):
+        total = result.get("total")
+        if isinstance(total, (int, float)):
+            return max(0, int(total))
+        logger.warning(f"[{job_name}] 返回 dict 但缺少可用 total，按 0 记录")
+        return 0
+
+    logger.warning(f"[{job_name}] 未知返回类型 {type(result).__name__}，按 0 记录")
+    return 0
+
+
 # ============== 爬虫任务包装 ==============
 def run_chemical_price():
     """执行化工价格爬虫"""
@@ -134,7 +156,7 @@ def run_chemical_utilization():
 
 
 def run_ak_irm():
-    """执行 AKShare 互动平台下载器"""
+    """执行 AKShare 互动平台下载器，返回新增记录数"""
     import standalone_ak_irm_downloader as mod
 
     mod.logger = mod.Logger(mod.LOG_PATH)
@@ -145,18 +167,15 @@ def run_ak_irm():
     df = mod.load_company_list()
     stats = mod.process_all_stocks(df, mod.ATTACHMENT_DIR, skip_ehd=not ehd_available)
 
-    # 返回详细统计
-    hdy_downloaded = stats["hdy"]["downloaded"]
-    ehd_downloaded = stats["ehd"]["downloaded"]
-    return {
-        "total": hdy_downloaded + ehd_downloaded,
-        "互动易": hdy_downloaded,
-        "e 互动": ehd_downloaded,
-    }
+    hdy_downloaded = int(stats.get("hdy", {}).get("downloaded", 0))
+    ehd_downloaded = int(stats.get("ehd", {}).get("downloaded", 0))
+    total_downloaded = hdy_downloaded + ehd_downloaded
+    mod.logger.log(f"统计：互动易={hdy_downloaded}，e互动={ehd_downloaded}，合计={total_downloaded}")
+    return total_downloaded
 
 
 def run_ir_pdf():
-    """执行巨潮 PDF 下载器"""
+    """执行巨潮 PDF 下载器，返回新增记录数"""
     import standalone_ir_downloader as mod
 
     mod.logger = mod.Logger(mod.LOG_PATH)
@@ -167,7 +186,7 @@ def run_ir_pdf():
 
     df = mod.load_company_list()
     total_downloaded, _, _, _ = mod.process_all_stocks(df, mod.PDF_DIR)
-    return {"PDF 纪要": total_downloaded}
+    return int(total_downloaded or 0)
 
 
 def run_news_cls():
@@ -317,10 +336,11 @@ def execute_job(job_name, logger):
 
     try:
         func = JOB_REGISTRY[job_name]
-        count = func()
+        result = func()
+        count = normalize_records_count(result, job_name, logger)
         end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_run(job_name, start_time, end_time, "success", records_count=count or 0)
-        logger.info(f"[{job_name}] 任务完成，处理 {count or 0} 条记录")
+        log_run(job_name, start_time, end_time, "success", records_count=count)
+        logger.info(f"[{job_name}] 任务完成，处理 {count} 条记录")
     except Exception as e:
         end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         error_msg = str(e)
