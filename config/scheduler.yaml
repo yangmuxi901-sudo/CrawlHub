@@ -73,38 +73,14 @@ scheduler:
       misfire_grace_time: 3600
 
     cninfo_announcement:
-      enabled: false  # 待修复：API 返回 451 错误
+      enabled: true  # 已修复：改用 AKShare stock_notice_report
       cron: "0 10,16 * * 1-5"  # 工作日 10 点和 16 点
       misfire_grace_time: 3600
 
     eastmoney_news:
-      enabled: false  # 待修复：请求超时
+      enabled: true  # 已修复：改用 AKShare stock_news_em
       cron: "0 9,12,17 * * 1-5"  # 工作日 9 点、12 点和 17 点
       misfire_grace_time: 3600
-
-    # 国内聚合新闻（需配置 API Key）
-    news_juhe_domestic:
-      enabled: false  # 需 JUHE_API_KEY
-      cron: "*/20 9-17 * * 1-5"  # 交易日每 20 分钟
-      misfire_grace_time: 1200
-
-    news_tianapi_domestic:
-      enabled: false  # 需 TIANAPI_API_KEY
-      cron: "*/30 9-17 * * 1-5"  # 交易日每 30 分钟
-      misfire_grace_time: 1800
-
-    # =============================
-    # 启用模板（交易时段，复制后直接改 enabled）
-    # news_juhe_domestic:
-    #   enabled: true
-    #   cron: "*/20 9-17 * * 1-5"
-    #   misfire_grace_time: 1200
-    #
-    # news_tianapi_domestic:
-    #   enabled: true
-    #   cron: "*/30 9-17 * * 1-5"
-    #   misfire_grace_time: 1800
-    # =============================
 
   logging:
     max_bytes: 10485760

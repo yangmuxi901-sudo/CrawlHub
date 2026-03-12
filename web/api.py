@@ -36,8 +36,6 @@ JOB_LABELS = {
     "stcn_kuaixun": "证券时报快讯",
     "cninfo_announcement": "巨潮资讯公告",
     "eastmoney_news": "东方财富新闻",
-    "news_juhe_domestic": "聚合新闻(Juhe)",
-    "news_tianapi_domestic": "聚合新闻(TianAPI)",
 }
 
 

@@ -30,13 +30,7 @@
   - 统一入库去重（`UNIQUE(link)`）
   - 统一调度任务注册与执行
 
-## 3. 当前落地状态
-- `news_domestic_aggregator.py` 已迁移到三层架构：
-  - 抓取：本文件 `_fetch_juhe/_fetch_tianapi`
-  - 标准化：`normalize_news_item`
-  - 入库编排：`NewsIngestionPipeline + FinanceNewsStore`
-
-## 4. 新增新闻源模板
+## 3. 新增新闻源模板
 1. 新建 `crawlers/news_xxx.py`
 2. 写 `_fetch_xxx()` 仅负责抓取解析
 3. 用 `pipeline.ingest(..., normalize_news_item)` 入库
@@ -44,7 +38,7 @@
 5. 在 `config/scheduler.yaml` 增加任务配置（默认 disabled）
 6. 在 `web/api.py` 的 `get_jobs()` 加展示项
 
-## 5. 为什么这样扩展更快
+## 4. 为什么这样扩展更快
 - 每加一个源，不再重复写 SQL/索引/去重
 - 数据一致性由中层统一控制
 - 调度接入成本固定，便于批量扩展

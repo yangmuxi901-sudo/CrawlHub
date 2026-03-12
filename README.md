@@ -255,62 +255,11 @@ python scheduler_service.py --run-now ak_irm
 # 立即执行巨潮 PDF 下载
 python scheduler_service.py --run-now ir_pdf
 
-# 立即执行国内聚合新闻（需配置 API Key）
-python scheduler_service.py --run-now news_juhe_domestic
-python scheduler_service.py --run-now news_tianapi_domestic
-
 # 指定配置文件
 python scheduler_service.py --config /path/to/scheduler.yaml
 ```
 
 ---
-
-## 国内聚合新闻（Juhe + TianAPI）
-
-### 功能说明
-
-为了减少逐站点反爬维护成本，新增国内聚合新闻采集器：
-
-1. Juhe 聚合新闻（默认 `caijing`）
-2. TianAPI 聚合新闻（默认 `caijing`）
-
-数据统一写入 `finance_news` 表，字段与现有新闻爬虫一致。
-
-### 环境变量
-
-```bash
-# Juhe（必填）
-export JUHE_API_KEY=your_key
-# 可选
-export JUHE_API_URL=http://v.juhe.cn/toutiao/index
-export JUHE_NEWS_TYPE=caijing
-
-# TianAPI（必填）
-export TIANAPI_API_KEY=your_key
-# 可选
-export TIANAPI_API_URL=https://apis.tianapi.com/caijing/index
-export TIANAPI_WORD=
-```
-
-Windows PowerShell:
-
-```powershell
-$env:JUHE_API_KEY='your_key'
-$env:TIANAPI_API_KEY='your_key'
-```
-
-### 独立执行
-
-```bash
-python crawlers/news_domestic_aggregator.py
-```
-
-### 调度执行
-
-在 `config/scheduler.yaml` 中启用：
-
-1. `news_juhe_domestic`
-2. `news_tianapi_domestic`
 
 ### 日常运维
 

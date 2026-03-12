@@ -34,26 +34,3 @@ def normalize_news_item(
         article=str(article or "").strip()[:10000],
         category=str(category or "财经").strip() or "财经",
     )
-
-
-def from_juhe_record(record: dict[str, Any]) -> NormalizedNewsItem | None:
-    return normalize_news_item(
-        source="聚合-Juhe",
-        title=record.get("title", ""),
-        link=record.get("url", ""),
-        pub_date=record.get("date"),
-        article=record.get("author_name", ""),
-        category="财经",
-    )
-
-
-def from_tianapi_record(record: dict[str, Any]) -> NormalizedNewsItem | None:
-    return normalize_news_item(
-        source="聚合-TianAPI",
-        title=record.get("title", ""),
-        link=record.get("url", ""),
-        pub_date=record.get("ctime") or record.get("pubDate"),
-        article=record.get("description") or record.get("content"),
-        category="财经",
-    )
-

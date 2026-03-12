@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(pip show akshare 2>/dev/null | head -5)",
+      "Bash(python3 -c \"import akshare as ak; print\\(dir\\(ak\\)\\)\" 2>&1 | tr ',' '\\\\n' | grep -i chem)",
+      "Bash(python3 standalone_ak_irm_downloader.py)",
+      "Bash(pip3 install pandas requests pyyaml beautifulsoup4 akshare)",
+      "Bash(pip3 install --user pandas requests pyyaml beautifulsoup4 akshare)",
+      "Bash(ls -la /Volumes/KESU-1/Data-Fin/股东报告/*.md)"
+    ]
+  }
+}

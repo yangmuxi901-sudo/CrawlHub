@@ -288,24 +288,6 @@ def run_eastmoney_news():
     return count
 
 
-def run_news_juhe_domestic():
-    """执行 Juhe 国内聚合新闻爬虫"""
-    from crawlers.news_domestic_aggregator import DomesticAggregatorCrawler
-
-    crawler = DomesticAggregatorCrawler()
-    count = crawler.crawl(provider="juhe", pages=1, page_size=30)
-    return count
-
-
-def run_news_tianapi_domestic():
-    """执行 TianAPI 国内聚合新闻爬虫"""
-    from crawlers.news_domestic_aggregator import DomesticAggregatorCrawler
-
-    crawler = DomesticAggregatorCrawler()
-    count = crawler.crawl(provider="tianapi", pages=1, page_size=30)
-    return count
-
-
 # 任务注册表
 JOB_REGISTRY = {
     "chemical_price": run_chemical_price,
@@ -323,8 +305,6 @@ JOB_REGISTRY = {
     "stcn_kuaixun": run_stcn_kuaixun,
     "cninfo_announcement": run_cninfo_announcement,
     "eastmoney_news": run_eastmoney_news,
-    "news_juhe_domestic": run_news_juhe_domestic,
-    "news_tianapi_domestic": run_news_tianapi_domestic,
 }
 
 

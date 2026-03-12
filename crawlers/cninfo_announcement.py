@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-巨潮资讯网爬虫
+巨潮资讯网爬虫 - Playwright版
+数据源：http://www.cninfo.com.cn/
 爬取 A 股上市公司最新公告
-数据源：http://webapi.cninfo.com.cn/
 """
 
 import os
 import sys
-import json
-import math
-import time
-import hashlib
 import sqlite3
-import requests
+import warnings
+import time
 from datetime import datetime
 from typing import List, Dict
+
+warnings.filterwarnings('ignore')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,48 +22,12 @@ from crawlers.base import BaseCrawler, DB_PATH, Logger
 
 
 class CNInfoAnnouncementCrawler(BaseCrawler):
-    """巨潮资讯网公告爬虫"""
+    """巨潮资讯网公告爬虫 - Playwright版"""
 
     def __init__(self):
         super().__init__(name="CNInfo")
-        self.api_base = "http://webapi.cninfo.com.cn/api/sysapi/"
-        # 巨潮资讯 API 端点
-        self.endpoints = {
-            "zuixin": "p_sysapi1128",   # 最新公告
-            "stock": "p_sysapi1078",    # 股票公告
-            "fund": "p_sysapi1126",     # 基金公告
-            "datas": "p_sysapi1127",    # 其他数据
-        }
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "http://webapi.cninfo.com.cn/",
-            "mcode": self._generate_mcode(),
-        }
-
-    def _generate_mcode(self) -> str:
-        """生成巨潮 API 所需的 mcode 参数"""
-        dt = str(math.floor(time.time()))
-        key_str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
-        output = ""
-        i = 0
-        while i < len(dt):
-            chr1 = ord(dt[i]) if i < len(dt) else 0
-            chr2 = ord(dt[i+1]) if i+1 < len(dt) else 0
-            chr3 = ord(dt[i+2]) if i+2 < len(dt) else 0
-            i += 3
-
-            enc1 = chr1 >> 2
-            enc2 = ((chr1 & 3) << 4) | (chr2 >> 4)
-            enc3 = ((chr2 & 15) << 2) | (chr3 >> 6)
-            enc4 = chr3 & 63
-
-            if not chr2:
-                enc3 = enc4 = 64
-            elif not chr3:
-                enc4 = 64
-
-            output += key_str[enc1] + key_str[enc2] + key_str[enc3] + key_str[enc4]
-        return output
+        # 巨潮资讯公告页面（深交所）
+        self.url = "http://www.cninfo.com.cn/new/commonUrl?url=disclosure/list/notice#szse"
 
     def init_db(self):
         """初始化数据库表"""
@@ -73,7 +36,7 @@ class CNInfoAnnouncementCrawler(BaseCrawler):
             CREATE TABLE IF NOT EXISTS exchange_announcements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 exchange TEXT NOT NULL,
-                security_code TEXT NOT NULL,
+                security_code TEXT,
                 security_name TEXT,
                 title TEXT NOT NULL,
                 pub_date TEXT NOT NULL,
@@ -85,67 +48,98 @@ class CNInfoAnnouncementCrawler(BaseCrawler):
         ''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_announcements_exchange ON exchange_announcements(exchange)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_announcements_pub_date ON exchange_announcements(pub_date)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_announcements_code ON exchange_announcements(security_code)')
         conn.commit()
         conn.close()
         self.logger.log("数据库表初始化完成")
 
-    def fetch_announcements(self, api_name: str) -> List[Dict]:
-        """获取公告列表"""
-        url = self.api_base + api_name
-
+    def fetch_announcements(self) -> List[Dict]:
+        """使用 Playwright 获取公告"""
         try:
-            resp = requests.post(url, headers=self.headers, timeout=15)
-            resp.raise_for_status()
-            data = resp.json()
+            from playwright.sync_api import sync_playwright
 
-            if data.get("resultcode") != 200:
-                self.logger.log(f"API 返回异常：{data.get('resultcode')}", "ERROR")
-                return []
+            announcements = []
 
-            records = data.get("records", [])
-            return records
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+
+                self.logger.log(f"正在加载页面: {self.url}")
+                page.goto(self.url, timeout=30000)
+                page.wait_for_load_state('networkidle')
+                time.sleep(3)  # 等待动态内容加载
+
+                # 获取表格中的行
+                rows = page.query_selector_all('table tbody tr')
+                self.logger.log(f"找到 {len(rows)} 条公告")
+
+                for row in rows:
+                    try:
+                        cells = row.query_selector_all('td')
+                        if len(cells) < 3:
+                            continue
+
+                        # 解析单元格
+                        code = cells[0].inner_text().strip() if cells[0] else ""
+                        name = cells[1].inner_text().strip() if cells[1] else ""
+
+                        # 标题和链接
+                        title_cell = cells[2]
+                        title = title_cell.inner_text().strip() if title_cell else ""
+                        link_el = title_cell.query_selector('a') if title_cell else None
+                        link = link_el.get_attribute('href') if link_el else ""
+
+                        # 日期
+                        pub_date = ""
+                        if len(cells) > 3 and cells[3]:
+                            pub_date = cells[3].inner_text().strip()
+
+                        if not title or not link:
+                            continue
+
+                        # 构建完整链接
+                        if link and not link.startswith('http'):
+                            link = 'http://www.cninfo.com.cn' + link
+
+                        # 标准化时间格式
+                        if pub_date:
+                            try:
+                                # 尝试解析日期格式
+                                pub_date = pub_date.replace('\n', ' ').strip()[:19]
+                            except Exception:
+                                pub_date = datetime.now().strftime("%Y-%m-%d")
+                        else:
+                            pub_date = datetime.now().strftime("%Y-%m-%d")
+
+                        announcements.append({
+                            "exchange": "CNINFO",
+                            "security_code": code,
+                            "security_name": name,
+                            "title": title[:200],
+                            "pub_date": pub_date,
+                            "category": "公告",
+                            "link": link,
+                            "content": "",
+                        })
+
+                    except Exception as e:
+                        self.logger.log(f"解析行失败：{e}", "DEBUG")
+                        continue
+
+                browser.close()
+
+            return announcements
 
         except Exception as e:
             self.logger.log(f"获取公告失败：{e}", "ERROR")
             return []
 
-    def process_records(self, records: List[Dict], exchange: str = "CNINFO") -> List[Dict]:
-        """处理公告记录"""
-        items = []
-        for record in records:
-            pub_date = record.get("DECLAREDATE") or record.get("RECTIME")
-            if not pub_date:
-                continue
-
-            title = record.get("F001V", "")
-            if not title:
-                continue
-
-            code = record.get("SECCODE", "")
-            category = record.get("F003V", "")
-            summary = record.get("F002V", "")
-
-            items.append({
-                "exchange": exchange,
-                "security_code": code,
-                "security_name": "",
-                "title": title[:200],
-                "pub_date": pub_date[:10] if len(pub_date) > 10 else pub_date,
-                "category": category,
-                "link": f"http://webapi.cninfo.com.cn/#/detail?code={code}",
-                "content": summary[:1000] if summary else "",
-            })
-
-        return items
-
-    def save_announcements(self, items: List[Dict]) -> int:
+    def save_announcements(self, announcements: List[Dict]) -> int:
         """保存公告到数据库"""
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
         inserted = 0
-        for item in items:
+        for item in announcements:
             try:
                 cursor.execute('''
                     INSERT OR IGNORE INTO exchange_announcements
@@ -179,21 +173,18 @@ class CNInfoAnnouncementCrawler(BaseCrawler):
         """
         self.init_db()
 
-        total_inserted = 0
         self.logger.log("开始爬取巨潮资讯网公告...")
 
-        # 爬取各类公告
-        for name, endpoint in self.endpoints.items():
-            self.logger.log(f"正在爬取：{name}...")
-            records = self.fetch_announcements(endpoint)
-            items = self.process_records(records)
-            inserted = self.save_announcements(items)
-            total_inserted += inserted
-            self.logger.log(f"{name}: 获取{len(records)}条，新增{inserted}条")
-            time.sleep(0.5)
+        announcements = self.fetch_announcements()
 
-        self.logger.log(f"爬取完成，共新增{total_inserted}条公告", "SUCCESS")
-        return total_inserted
+        if not announcements:
+            self.logger.log("无公告数据", "WARNING")
+            return 0
+
+        inserted = self.save_announcements(announcements)
+        self.logger.log(f"获取{len(announcements)}条，新增{inserted}条")
+        self.logger.log(f"爬取完成，共新增{inserted}条公告", "SUCCESS")
+        return inserted
 
 
 def main():
@@ -209,21 +200,21 @@ def main():
     total = cursor.fetchone()[0]
 
     cursor.execute('''
-        SELECT category, COUNT(*), MAX(pub_date)
+        SELECT security_code, security_name, title, pub_date
         FROM exchange_announcements
         WHERE exchange = 'CNINFO'
-        GROUP BY category
-        LIMIT 10
+        ORDER BY id DESC
+        LIMIT 5
     ''')
-    stats = cursor.fetchall()
+    recent = cursor.fetchall()
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     print("巨潮资讯爬取结果")
-    print("=" * 50)
+    print("=" * 60)
     print(f"巨潮公告总数：{total} 条")
-    print("\n按类别统计（前 10）:")
-    for stat in stats:
-        print(f"  {stat[0] or '未分类'}: {stat[1]} 条 (最新：{stat[2]})")
+    print("\n最近5条公告:")
+    for r in recent:
+        print(f"  {r[0]} {r[1]}: {r[2][:30]}... ({r[3]})")
 
     conn.close()
 
